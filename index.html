@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>간사이 Nintendo × Pokémon 일정 편집기</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">N</div>
+      <div><p class="eyebrow">2027 MAY · KANSAI</p><h1>Nintendo × Pokémon 일정 편집기</h1></div>
+    </div>
+    <div class="top-controls">
+      <div class="plan-control">
+        <span class="control-label">일정안</span>
+        <div class="start-toggle" role="group" aria-label="여행 일정안 선택">
+          <button class="start-btn" data-start="12">A · 12일 밤 출발 <b data-plan-count="12">0</b></button>
+          <button class="start-btn active" data-start="13">B · 13일 출발 <b data-plan-count="13">0</b></button>
+        </div>
+      </div>
+      <button id="recommendBtn" class="btn recommend" type="button">추천 일정</button>
+      <button id="resetBtn" class="btn secondary" type="button">현재 일정 비우기</button>
+      <button id="jsonOpenBtn" class="btn secondary" type="button">JSON 열기</button>
+      <button id="jsonSaveBtn" class="btn primary" type="button">JSON 저장</button>
+      <span id="jsonStatus" class="json-status neutral">새 일정 · JSON 미저장</span>
+      <input id="jsonFileInput" type="file" accept=".json,application/json" hidden />
+    </div>
+  </header>
+
+  <main id="workspace" class="workspace">
+    <aside id="libraryPanel" class="library-panel panel">
+      <div class="panel-title-row">
+        <div><h2>여행 장소</h2><p>개별 장소 또는 같은 생활권 동선을 날짜로 끌어 넣으세요.</p></div>
+      </div>
+
+      <div class="library-tabs" role="tablist" aria-label="장소와 권역 동선 전환">
+        <button id="placesTab" class="library-tab active" data-mode="places" type="button">장소</button>
+        <button id="routesTab" class="library-tab" data-mode="routes" type="button">권역·동선</button>
+      </div>
+      <div id="placeLibrary" class="library-list"></div>
+    </aside>
+
+    <section class="schedule-panel">
+      <div id="requiredWarning" class="required-warning hidden"><strong>Nintendo Museum</strong>은 필수입니다. 장소 목록에서 원하는 날짜로 넣어주세요.</div>
+      <div id="scheduleBoard" class="schedule-board"></div>
+    </section>
+  </main>
+
+  <dialog id="detailDialog" class="dialog detail-dialog">
+    <div class="detail-modal">
+      <button id="detailCloseBtn" class="dialog-close detail-modal-close" type="button" aria-label="닫기">×</button>
+      <img id="detailImage" class="detail-image" alt="장소 이미지" />
+      <div class="detail-body">
+        <div id="detailBadges" class="detail-badges"></div><h2 id="detailTitle"></h2><p id="detailDesc" class="detail-desc"></p>
+        <dl id="detailFacts" class="detail-facts"></dl><div id="detailReservation" class="reservation-note"></div>
+        <section id="relatedSection" class="related-section hidden"><div class="related-head"><strong>같이 보기</strong><span>같은 지역·동선</span></div><div id="relatedGroups" class="related-groups"></div></section>
+        <div class="detail-actions"><button id="detailAddBtn" class="btn primary wide" type="button">일정에 추가</button><a id="detailSource" class="btn link-btn wide" target="_blank" rel="noopener">공식/참고 페이지 ↗</a></div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="addDialog" class="dialog">
+    <form method="dialog" id="addForm"><div class="dialog-head"><div><p class="eyebrow">일정 추가</p><h3 id="addDialogTitle">날짜 선택</h3></div><button value="cancel" class="dialog-close">×</button></div><div id="dateChoices" class="date-choices"></div><div class="dialog-actions"><button value="cancel" class="btn secondary">취소</button></div></form>
+  </dialog>
+
+  <dialog id="customDialog" class="dialog">
+    <form method="dialog" id="customForm"><div class="dialog-head"><div><p class="eyebrow">직접 추가</p><h3>커스텀 일정</h3></div><button value="cancel" class="dialog-close">×</button></div><label class="field"><span>이름</span><input id="customTitle" required placeholder="예: 저녁 식사, 체크인, 자유시간" /></label><label class="field"><span>메모</span><textarea id="customMemo" rows="3" placeholder="선택 사항"></textarea></label><label class="field"><span>날짜</span><select id="customDay"></select></label><div class="dialog-actions"><button value="cancel" class="btn secondary">취소</button><button id="customSubmit" value="default" class="btn primary">추가</button></div></form>
+  </dialog>
+
+  <dialog id="recommendDialog" class="dialog recommend-dialog">
+    <form method="dialog">
+      <div class="dialog-head"><div><p class="eyebrow">추천 일정</p><h3>12일 밤 KIX 도착안</h3></div><button value="cancel" class="dialog-close">×</button></div>
+      <p class="recommend-copy">A · 12일 밤 출발 일정에 추천안을 넣습니다. 공항 숙박만 고르고 나머지는 적용 후 자유롭게 드래그해서 바꿀 수 있습니다.</p>
+      <div class="recommend-options">
+        <label class="recommend-option"><input type="radio" name="recommendHotel" value="firstcabin" checked><span><strong>First Cabin KIX</strong><small>기본 추천 · 공항 캡슐형 숙박</small></span></label>
+        <label class="recommend-option"><input type="radio" name="recommendHotel" value="nikkokix"><span><strong>Hotel Nikko KIX</strong><small>돈을 더 쓰고 숙면 우선</small></span></label>
+      </div>
+      <div class="dialog-actions"><button value="cancel" class="btn secondary">취소</button><button id="recommendApplyBtn" value="default" type="button" class="btn recommend">추천안 적용</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+  <script src="assets/app.js"></script>
+</body>
+</html>
