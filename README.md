@@ -1,10 +1,10 @@
-# Nintendo × Pokémon Kansai Trip Dashboard v12
+# Nintendo × Pokémon Kansai Trip Dashboard v13
 
 2027년 5월 간사이 여행 일정 편집기입니다. `index.html`을 Chrome/Edge에서 열면 됩니다.
 
-## v12 핵심 변경 — localStorage 제거, JSON 파일 저장
+## v13 핵심 변경 — localStorage 제거, JSON 파일 저장
 
-v12부터 일정/예약 체크 상태를 브라우저 `localStorage`에 저장하지 않습니다.
+v13부터 일정/예약 체크 상태를 브라우저 `localStorage`에 저장하지 않습니다.
 
 - **JSON 저장**: 현재 A/B 일정안, 시간, 동선 묶음, 예약 체크 상태를 하나의 JSON 파일로 저장합니다.
 - **JSON 열기**: 이전에 저장한 JSON 파일을 선택해 그대로 복원합니다.
@@ -14,7 +14,7 @@ v12부터 일정/예약 체크 상태를 브라우저 `localStorage`에 저장�
 - 수정 후 JSON 저장을 하지 않은 상태에서 페이지를 닫으려 하면 브라우저가 이탈 경고를 표시합니다.
 - 새로고침/브라우저 재실행 후에는 **JSON 열기**로 일정 파일을 다시 불러오면 됩니다.
 
-> v12 코드에는 일정 저장 용도의 `localStorage` 사용이 없습니다.
+> v13 코드에는 일정 저장 용도의 `localStorage` 사용이 없습니다.
 
 ## 기존 기능
 
@@ -32,6 +32,14 @@ v12부터 일정/예약 체크 상태를 브라우저 `localStorage`에 저장�
 
 압축을 푼 뒤 다음 파일을 실행하세요.
 
-`nintendo_trip_dashboard_v12/index.html`
+`nintendo_trip_dashboard_v13/index.html`
 
 정적 HTML/CSS/JS로만 구성되어 있어 Netlify, GitHub Pages 같은 정적 호스팅에도 그대로 올릴 수 있습니다.
+
+
+## v13 변경사항
+- 모든 장소 카드에 실제 장소/현장/권역 참고 이미지를 지정했습니다. 이미지 로딩 실패 시 기존 fallback으로 안전하게 대체됩니다.
+- 장소 상세 모달을 확대하고 `핵심 정보`, `방문 팁`, `같이 보기`, `예약/티켓`, `정보 확인 기준`을 한 화면에서 볼 수 있게 했습니다.
+- Nintendo/Pokémon 매장, Nintendo Museum, 공항 숙박, 신오사카 에키벤, 덴덴타운 레트로게임/TCG 매장까지 상세 팁을 보강했습니다.
+- 현재 운영시간/정책은 2026-10 확인 기준이며 2027-05 여행 전 공식 링크에서 다시 확인하도록 표시합니다.
+- 일정 JSON 형식 버전을 13으로 올렸으며 기존 v12 JSON도 그대로 불러올 수 있습니다.

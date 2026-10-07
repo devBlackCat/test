@@ -10,7 +10,7 @@
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark">N</div>
-      <div><p class="eyebrow">2027 MAY · KANSAI</p><h1>Nintendo × Pokémon 일정 편집기</h1></div>
+      <div><p class="eyebrow">2027 MAY · KANSAI · v13</p><h1>Nintendo × Pokémon 일정 편집기</h1></div>
     </div>
     <div class="top-controls">
       <div class="plan-control">
@@ -51,11 +51,14 @@
   <dialog id="detailDialog" class="dialog detail-dialog">
     <div class="detail-modal">
       <button id="detailCloseBtn" class="dialog-close detail-modal-close" type="button" aria-label="닫기">×</button>
-      <img id="detailImage" class="detail-image" alt="장소 이미지" />
+      <div class="detail-media"><img id="detailImage" class="detail-image" alt="장소 이미지" /><div id="detailPhotoNote" class="detail-photo-note"></div></div>
       <div class="detail-body">
         <div id="detailBadges" class="detail-badges"></div><h2 id="detailTitle"></h2><p id="detailDesc" class="detail-desc"></p>
-        <dl id="detailFacts" class="detail-facts"></dl><div id="detailReservation" class="reservation-note"></div>
+        <section class="detail-info-section"><div class="detail-section-head"><strong>핵심 정보</strong><span>위치 · 운영 · 역할</span></div><dl id="detailFacts" class="detail-facts"></dl></section>
+        <div id="detailReservation" class="reservation-note"></div>
+        <section id="detailTipsSection" class="detail-extra-section hidden"><div class="detail-section-head"><strong>방문 팁</strong><span>일정에 바로 쓰는 정보</span></div><ul id="detailTips" class="detail-tip-list"></ul></section>
         <section id="relatedSection" class="related-section hidden"><div class="related-head"><strong>같이 보기</strong><span>같은 지역·동선</span></div><div id="relatedGroups" class="related-groups"></div></section>
+        <div id="detailFreshness" class="detail-freshness"></div>
         <div class="detail-actions"><button id="detailAddBtn" class="btn primary wide" type="button">일정에 추가</button><a id="detailSource" class="btn link-btn wide" target="_blank" rel="noopener">공식/참고 페이지 ↗</a></div>
       </div>
     </div>
