@@ -141,14 +141,42 @@ const PLACE_AREA = {
 };
 const PLACE_LIBRARY_EXCLUDE=new Set(['dendentown','powerup']);
 const PLACE_OPTION_NOTES={snw:'Power-Up Band · 선택 옵션: 구입 시 키 챌린지·코인 등 연동 체험을 확장할 수 있습니다.'};
-const RELATION_HINTS = {
-  shinosaka:'에키벤·Pokémon Stand와 같은 신오사카역 안에서 묶기',ekiben:'Pokémon Stand와 같은 신오사카역 경유',pokemonstand:'에키벤과 같은 신오사카역 경유',
-  marufukuro:'교토 B · 시치조/교토역권',pkmkyoto:'Nintendo KYOTO와 교토 A 동선',ninkyoto:'Pokémon Center KYOTO와 교토 A 동선',museum:'교토 C · 우지/오구라 단독 핵심',
-  ninosaka:'Pokémon Center OSAKA·Card Station과 같은 우메다 권역',pkmosaka:'Nintendo OSAKA·Card Station과 같은 우메다 권역',cardstation:'Pokémon Center OSAKA와 같은 우메다 권역',
-  shinsaibashi:'Pokémon Cafe·Kirby Store와 같은 건물',pokecafe:'Pokémon Center OSAKA DX·Kirby Store와 같은 건물',kirbystore:'Pokémon Center OSAKA DX·Pokémon Cafe와 같은 건물',dotonbori:'신사이바시/난바 동선 뒤에 이어가기 좋음',
-  superpotato:'게임탐정단·Preyz와 오타로드 도보 쇼핑',gametanteidan:'Super Potato·Preyz와 오타로드 도보 쇼핑',preyzmain:'레트로게임점들과 닛폰바시에서 함께 보기',preyzotaro:'Pokémon Card 우선이면 오사카 C에서 우선순위 높음',
-  usj:'SUPER NINTENDO WORLD와 같은 유니버설시티 하루 일정',snw:'USJ 내부 · Power-Up Band는 체험 옵션'
+const PLACE_CARD_META = {
+  kix:{type:'공항',cls:'airport',tags:['입출국','환승']},
+  darakhyu:{type:'숙박',cls:'hotel',tags:['캡슐호텔','인천공항']},
+  firstcabin:{type:'숙박',cls:'hotel',tags:['캡슐호텔','공항직결']},
+  kixhotel:{type:'숙박',cls:'hotel',tags:['일반호텔','KIX']},
+  nikkokix:{type:'숙박',cls:'hotel',tags:['일반호텔','공항직결']},
+  washingtonkix:{type:'숙박',cls:'hotel',tags:['일반호텔','린쿠타운']},
+  kixnearhotel:{type:'숙박',cls:'hotel',tags:['저가호텔','린쿠타운']},
+  haruka:{type:'이동',cls:'transport',tags:['JR특급','공항철도']},
+  shinosaka:{type:'역',cls:'station',tags:['신칸센','환승']},
+  ekiben:{type:'식사',cls:'food',tags:['에키벤','도시락쇼핑']},
+  pokemonstand:{type:'굿즈',cls:'shop',tags:['Pokémon','자판기']},
+  kyotohotel:{type:'숙박',cls:'hotel',tags:['교토','호텔']},
+  marufukuro:{type:'관광',cls:'tour',tags:['Nintendo역사','건축']},
+  pkmkyoto:{type:'굿즈',cls:'shop',tags:['Pokémon','공식매장']},
+  ninkyoto:{type:'굿즈',cls:'shop',tags:['Nintendo','공식매장']},
+  museum:{type:'박물관',cls:'museum',tags:['Nintendo','체험']},
+  osakahotel:{type:'숙박',cls:'hotel',tags:['오사카','호텔']},
+  ninosaka:{type:'굿즈',cls:'shop',tags:['Nintendo','공식매장']},
+  pkmosaka:{type:'굿즈',cls:'shop',tags:['Pokémon','공식매장']},
+  shinsaibashi:{type:'굿즈',cls:'shop',tags:['Pokémon','DX매장']},
+  pokecafe:{type:'카페',cls:'food',tags:['Pokémon','테마식사']},
+  dotonbori:{type:'관광',cls:'tour',tags:['먹거리','거리관광']},
+  usj:{type:'테마파크',cls:'park',tags:['어트랙션','하루코스']},
+  snw:{type:'테마존',cls:'park',tags:['Nintendo','Mario','DK']},
+  powerup:{type:'체험',cls:'experience',tags:['Nintendo','밴드연동']},
+  kixreturn:{type:'이동',cls:'transport',tags:['공항이동','귀국']},
+  kirbystore:{type:'굿즈',cls:'shop',tags:['Kirby','공식매장']},
+  dendentown:{type:'쇼핑거리',cls:'gaming',tags:['레트로게임','TCG']},
+  superpotato:{type:'레트로게임',cls:'gaming',tags:['Nintendo','중고게임']},
+  gametanteidan:{type:'레트로게임',cls:'gaming',tags:['Nintendo','희귀게임']},
+  cardstation:{type:'카드',cls:'card',tags:['Pokémon','공식TCG']},
+  preyzmain:{type:'카드',cls:'card',tags:['TCG','싱글카드']},
+  preyzotaro:{type:'카드',cls:'card',tags:['Pokémon','싱글카드']}
 };
+
 const SAME_BUILDING = [new Set(['ninosaka','pkmosaka']),new Set(['shinsaibashi','pokecafe','kirbystore'])];
 
 const DAY_META = {
@@ -156,7 +184,7 @@ const DAY_META = {
 };
 
 const JSON_FORMAT='nintendo-kansai-trip-planner';
-const JSON_VERSION=13;
+const JSON_VERSION=14;
 let state = {
   activePlan:'start13',
   plans:{use12:{'12':[],'13':[],'14':[],'15':[],'16':[]},start13:{'13':[],'14':[],'15':[],'16':[]}},
@@ -278,14 +306,21 @@ function areaLabel(key){return AREA_META[key]?.label||key||''}
 function areaMajor(key){return AREA_META[key]?.major||'기타'}
 
 function renderLibraryTabs(){document.querySelectorAll('.library-tab').forEach(btn=>btn.classList.toggle('active',btn.dataset.mode===libraryMode))}
-function placeBadges(p){
-  const badges=[];
+function cardMeta(p){return PLACE_CARD_META[p?.id]||{type:'장소',cls:'main',tags:[]}}
+function placeBadges(p,includeTags=false){
+  const meta=cardMeta(p),badges=[];
   if(p.kind==='required')badges.push('<span class="mini-badge required">필수</span>');
-  if(p.kind==='option')badges.push('<span class="mini-badge option">옵션</span>');
-  if(p.kind==='hotel')badges.push('<span class="mini-badge hotel">숙박</span>');
-  const type=placeType(p);if(type==='gaming')badges.push('<span class="mini-badge gaming">게임쇼핑</span>');
-  if(type==='transport')badges.push('<span class="mini-badge transport">이동</span>');
+  badges.push(`<span class="mini-badge ${escapeHtml(meta.cls)}">${escapeHtml(meta.type)}</span>`);
+  if(includeTags)meta.tags.forEach(tag=>badges.push(`<span class="mini-badge meta-tag-badge">#${escapeHtml(tag)}</span>`));
   return badges;
+}
+function renderPlaceMeta(p){
+  const meta=cardMeta(p),seen=new Set(),parts=[];
+  if(p.kind==='required'){parts.push('<span class="mini-badge required">필수</span>');seen.add('필수')}
+  if(meta.type&&!seen.has(meta.type)){parts.push(`<span class="mini-badge ${escapeHtml(meta.cls)}">${escapeHtml(meta.type)}</span>`);seen.add(meta.type)}
+  meta.tags.forEach(tag=>{const key=String(tag).toLowerCase();if(!seen.has(key)){parts.push(`<span class="meta-hashtag">#${escapeHtml(tag)}</span>`);seen.add(key)}});
+  if(p.duration&&!seen.has(String(p.duration).toLowerCase()))parts.push(`<span class="meta-duration">${escapeHtml(p.duration)}</span>`);
+  return parts.join('');
 }
 function requirementLabel(rule){return rule.level==='required'?'필수':rule.level==='conditional'?'확인':'권장'}
 function renderRequirementInline(placeId,context='library'){
@@ -305,11 +340,11 @@ function bindReservationToggles(root=document){
   root.querySelectorAll('.inline-requirement').forEach(row=>row.onclick=e=>e.stopPropagation());
 }
 function renderPlaceCard(p){
-  const relation=RELATION_HINTS[p.id],optionNote=PLACE_OPTION_NOTES[p.id];
+  const optionNote=PLACE_OPTION_NOTES[p.id];
   return `<article class="place-card" draggable="true" data-place="${p.id}">
     <div class="place-card-main">
       <img class="place-thumb" src="${p.image||FALLBACK}" alt="" onerror="this.src='${FALLBACK}'">
-      <div class="place-copy"><div class="place-title">${escapeHtml(p.title)}</div><div class="place-meta">${placeBadges(p).join('')}<span>${escapeHtml(p.duration)}</span></div>${relation?`<div class="relation-hint">↳ ${escapeHtml(relation)}</div>`:''}${optionNote?`<div class="place-option-note">🎮 ${escapeHtml(optionNote)}</div>`:''}</div>
+      <div class="place-copy"><div class="place-title">${escapeHtml(p.title)}</div><div class="place-meta">${renderPlaceMeta(p)}</div>${optionNote?`<div class="place-option-note">🎮 ${escapeHtml(optionNote)}</div>`:''}</div>
       <button class="add-mini" data-add="${p.id}" title="일정에 추가">＋</button>
     </div>
     ${renderRequirementInline(p.id)}
@@ -422,7 +457,7 @@ function selectPlace(id){
   const p=placeById(id);if(!p)return;selectedPlace=p;
   const img=document.getElementById('detailImage');img.src=p.image||FALLBACK;img.alt=`${p.title} 이미지`;img.onerror=()=>{img.onerror=null;img.src=FALLBACK};
   document.getElementById('detailPhotoNote').textContent=p.photoNote||'현장 참고 이미지';
-  document.getElementById('detailTitle').textContent=p.title;document.getElementById('detailDesc').textContent=p.desc;const badges=placeBadges(p);badges.push(`<span class="mini-badge main">${escapeHtml(p.duration)}</span>`);badges.push(`<span class="mini-badge area">${escapeHtml(areaLabel(regionKey(p)))}</span>`);document.getElementById('detailBadges').innerHTML=badges.join('');
+  document.getElementById('detailTitle').textContent=p.title;document.getElementById('detailDesc').textContent=p.desc;const badges=placeBadges(p,true);badges.push(`<span class="mini-badge main">${escapeHtml(p.duration)}</span>`);badges.push(`<span class="mini-badge area">${escapeHtml(areaLabel(regionKey(p)))}</span>`);document.getElementById('detailBadges').innerHTML=badges.join('');
   document.getElementById('detailFacts').innerHTML=Object.entries(p.facts||{}).map(([k,v])=>`<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('');
   const tipsSection=document.getElementById('detailTipsSection'),tips=document.getElementById('detailTips');tips.innerHTML=(p.tips||[]).map(t=>`<li>${escapeHtml(t)}</li>`).join('');tipsSection.classList.toggle('hidden',!(p.tips||[]).length);
   document.getElementById('detailFreshness').textContent=`${p.checkedAt||'2026-10'} 확인 기준 · 2027년 5월 방문 전 운영시간·예약·재고를 공식 페이지에서 재확인`;
