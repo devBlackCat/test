@@ -233,7 +233,7 @@ function setJsonStatus(text,mode='neutral'){
   el.classList.remove('neutral','dirty','saved');
   el.classList.add(mode);
 }
-function markDirty(){dirty=true;setJsonStatus('● 저장 안 됨 · JSON 저장 필요','dirty')}
+function markDirty(){dirty=true;setJsonStatus('● 저장 안 됨 · 공유 저장 필요','dirty')}
 function persist(){markDirty()}
 function buildJsonPayload(){
   return {format:JSON_FORMAT,version:JSON_VERSION,savedAt:new Date().toISOString(),state};
@@ -244,23 +244,69 @@ function downloadJsonText(text,filename){
   const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),0);
 }
-async function saveJson(){
-  const text=JSON.stringify(buildJsonPayload(),null,2);
-  const suggested=currentFileName||'nintendo-kansai-trip-2027.json';
-  try{
-    if(window.showSaveFilePicker){
-      if(!currentFileHandle){
-        currentFileHandle=await window.showSaveFilePicker({suggestedName:suggested,types:[{description:'여행 일정 JSON',accept:{'application/json':['.json']}}]});
-      }
-      const writable=await currentFileHandle.createWritable();await writable.write(text);await writable.close();
-      currentFileName=currentFileHandle.name||suggested;dirty=false;setJsonStatus(`✓ ${currentFileName} · 저장됨`,'saved');toast('JSON 파일에 저장했습니다.');return;
-    }
-  }catch(err){
-    if(err?.name==='AbortError')return;
-    currentFileHandle=null;
+const API_URL=(window.TRIP_API_URL||'').replace(/\\/$/,'');
+let remoteSha=null;
+let syncInProgress=false;
+let lastRemoteCheck=0;
+function renderAll(){renderLibraryTabs();renderLibrary();renderBoard();}
+async function apiRequest(method,body,editKey){
+  if(!API_URL)throw new Error('API 주소 미설정: assets/config.js에서 TRIP_API_URL을 설정하세요.');
+  const response=await fetch(API_URL+'/api/plan',{
+    method,cache:'no-store',
+    headers:{...(body?{'Content-Type':'application/json'}:{}),...(editKey?{'X-Edit-Key':editKey}:{})},
+    ...(body?{body:JSON.stringify(body)}:{})
+  });
+  let result;
+  try{result=await response.json()}catch{throw new Error('API가 JSON 응답을 반환하지 않았습니다.');}
+  if(!response.ok){
+    const error=new Error(result.error||'HTTP '+response.status);
+    error.status=response.status;
+    throw error;
   }
-  downloadJsonText(text,suggested);currentFileName=suggested;dirty=false;setJsonStatus(`✓ ${currentFileName} · 다운로드됨`,'saved');toast('JSON 파일을 다운로드했습니다.');
+  return result;
 }
+async function loadShared({silent=false}={}){
+  if(!API_URL){setJsonStatus('공유 API 주소 설정 필요','dirty');return;}
+  if(syncInProgress||dirty){if(!silent&&dirty)toast('저장하지 않은 변경이 있습니다. 먼저 저장하세요.');return;}
+  syncInProgress=true;
+  try{
+    const result=await apiRequest('GET');
+    if(!result.data||!result.sha)throw new Error('공유 일정 응답 형식이 올바르지 않습니다.');
+    if(remoteSha===result.sha){if(!silent)setJsonStatus('✓ 최신 공유 일정','saved');return;}
+    state=normalizeImportedState(result.data);
+    ensureState();migrateLegacyRoutes();
+    remoteSha=result.sha;dirty=false;renderAll();
+    setJsonStatus('✓ 공유 일정 동기화됨','saved');
+    if(!silent)toast('최신 공유 일정을 불러왔습니다.');
+  }catch(err){
+    console.error('Shared load:',err);
+    setJsonStatus('공유 일정 불러오기 실패','dirty');
+    if(!silent)toast('공유 일정 불러오기 실패: '+err.message);
+  }finally{syncInProgress=false;lastRemoteCheck=Date.now();}
+}
+async function saveJson(){
+  if(syncInProgress){toast('동기화 진행 중입니다.');return;}
+  if(!API_URL){toast('공유 API가 설정되지 않았습니다.');return;}
+  if(!remoteSha){toast('먼저 서버의 공유 일정을 불러오세요.');await loadShared();return;}
+  let editKey=sessionStorage.getItem('trip-edit-key')||'';
+  if(!editKey){
+    editKey=prompt('친구들과 공유한 편집 비밀번호를 입력하세요.')||'';
+    if(!editKey)return;
+  }
+  syncInProgress=true;
+  try{
+    const result=await apiRequest('PUT',{baseSha:remoteSha,data:buildJsonPayload()},editKey);
+    remoteSha=result.sha;dirty=false;
+    sessionStorage.setItem('trip-edit-key',editKey);
+    setJsonStatus('✓ GitHub 공유 저장 완료','saved');toast('모두가 볼 수 있는 일정으로 저장했습니다.');
+  }catch(err){
+    console.error('Shared save:',err);
+    if(err.status===401){sessionStorage.removeItem('trip-edit-key');toast('편집 비밀번호가 잘못됐습니다. 다시 저장하세요.');}
+    else if(err.status===409){setJsonStatus('⚠ 다른 사용자가 먼저 저장함','dirty');toast('충돌: 다른 친구가 먼저 저장했습니다. 현재 변경을 JSON 백업한 후 최신 일정을 불러오세요.');}
+    else {setJsonStatus('● 공유 저장 실패 · 변경 유지','dirty');toast('저장 실패: '+err.message);}
+  }finally{syncInProgress=false;}
+}
+function exportJsonBackup(){downloadJsonText(JSON.stringify(buildJsonPayload(),null,2),'nintendo-kansai-trip-backup.json');toast('현재 일정을 백업했습니다.');}
 function normalizeImportedState(data){
   const imported=data?.format===JSON_FORMAT?data.state:(data?.state?.plans?data.state:data);
   if(!imported||typeof imported!=='object'||!imported.plans)throw new Error('지원하지 않는 일정 JSON 형식입니다.');
@@ -505,10 +551,14 @@ document.getElementById('detailAddBtn').onclick=()=>{if(selectedPlace)openAddDia
 document.getElementById('detailCloseBtn').onclick=()=>document.getElementById('detailDialog').close();
 document.getElementById('detailDialog').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
 document.querySelectorAll('.library-tab').forEach(btn=>btn.onclick=()=>{libraryMode=btn.dataset.mode;renderLibraryTabs();renderLibrary()});
-document.getElementById('jsonOpenBtn').onclick=openJson;
+document.getElementById('jsonOpenBtn').onclick=openJson;\ndocument.getElementById('jsonBackupBtn').onclick=exportJsonBackup;\ndocument.getElementById('sharedReloadBtn').onclick=()=>loadShared();
 document.getElementById('jsonSaveBtn').onclick=saveJson;
 document.getElementById('jsonFileInput').onchange=e=>{const file=e.target.files?.[0];loadJsonFile(file);e.target.value=''};
 window.addEventListener('beforeunload',e=>{if(!dirty)return;e.preventDefault();e.returnValue=''});
 window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveJson()}});
 
 renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus('새 일정 · JSON 미저장','neutral');
+
+// 공유 일정: 수정 중에는 자동 덮어쓰지 않습니다.
+loadShared();
+setInterval(()=>{if(!dirty&&!syncInProgress&&Date.now()-lastRemoteCheck>=30000)loadShared({silent:true});},30000);
