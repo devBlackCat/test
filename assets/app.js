@@ -253,6 +253,7 @@ let lastRemoteCheck=0;
 let editRevision=0;
 let voteSaveTimer=null;
 let libraryDropBound=false;
+let lastRenderedLibraryMode=null;
 function queueVoteSave(){
   clearTimeout(voteSaveTimer);
   voteSaveTimer=setTimeout(()=>{
@@ -458,7 +459,7 @@ function renderPlaceCard(p){
   const optionNote=PLACE_OPTION_NOTES[p.id];
   return `<article class="place-card" draggable="true" data-place="${p.id}">
     <div class="place-card-main">
-      <img class="place-thumb" src="${p.image||FALLBACK}" alt="" onerror="this.src='${FALLBACK}'">
+      <img class="place-thumb" src="${p.image||FALLBACK}" loading="lazy" decoding="async" alt="" onerror="this.onerror=null;this.src='${FALLBACK}'">
       <div class="place-copy"><div class="place-title">${escapeHtml(p.title)}</div><div class="place-meta">${renderPlaceMeta(p)}</div>${optionNote?`<div class="place-option-note">🎮 ${escapeHtml(optionNote)}</div>`:''}</div>
       <button class="add-mini" data-add="${p.id}" title="일정에 추가">＋</button>
     </div>
@@ -501,8 +502,8 @@ function bindRouteCards(root){
 }
 function renderLibrary(){
   const root=document.getElementById('placeLibrary');
-  if(libraryMode==='routes'){root.innerHTML=renderRoutesGrouped();bindRouteCards(root);return}
-  const list=places.filter(p=>!PLACE_LIBRARY_EXCLUDE.has(p.id));root.innerHTML=renderPlacesGrouped(list);bindLibraryPlaceCards(root);
+  if(libraryMode==='routes'){root.innerHTML=renderRoutesGrouped();lastRenderedLibraryMode='routes';bindRouteCards(root);return}
+  const list=places.filter(p=>!PLACE_LIBRARY_EXCLUDE.has(p.id));root.innerHTML=renderPlacesGrouped(list);lastRenderedLibraryMode='places';bindLibraryPlaceCards(root);
 }
 
 function minutes(v){if(!v||!/^[0-2]\d:[0-5]\d$/.test(v))return null;const [h,m]=v.split(':').map(Number);return h*60+m}
@@ -572,7 +573,7 @@ function updateRequiredWarning(){document.getElementById('requiredWarning').clas
 
 function selectPlace(id){
   const p=placeById(id);if(!p)return;selectedPlace=p;
-  const img=document.getElementById('detailImage');img.src=p.image||FALLBACK;img.alt=`${p.title} 이미지`;img.onerror=()=>{img.onerror=null;img.src=FALLBACK};
+  const img=document.getElementById('detailImage');img.decoding='async';img.fetchPriority='high';img.src=p.image||FALLBACK;img.alt=`${p.title} 이미지`;img.onerror=()=>{img.onerror=null;img.src=FALLBACK};
   document.getElementById('detailPhotoNote').textContent=p.photoNote||'현장 참고 이미지';
   document.getElementById('detailTitle').textContent=p.title;document.getElementById('detailDesc').textContent=p.desc;const badges=placeBadges(p,true);badges.push(`<span class="mini-badge main">${escapeHtml(p.duration)}</span>`);badges.push(`<span class="mini-badge area">${escapeHtml(areaLabel(regionKey(p)))}</span>`);document.getElementById('detailBadges').innerHTML=badges.join('');
   document.getElementById('detailFacts').innerHTML=Object.entries(p.facts||{}).map(([k,v])=>`<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('');
