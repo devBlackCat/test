@@ -244,7 +244,7 @@ function downloadJsonText(text,filename){
   const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),0);
 }
-const API_URL=(window.TRIP_API_URL||'').replace(/\\/$/,'');
+const API_URL=(window.TRIP_API_URL||'').replace(/\/$/,'');
 let remoteSha=null;
 let syncInProgress=false;
 let lastRemoteCheck=0;
@@ -551,7 +551,9 @@ document.getElementById('detailAddBtn').onclick=()=>{if(selectedPlace)openAddDia
 document.getElementById('detailCloseBtn').onclick=()=>document.getElementById('detailDialog').close();
 document.getElementById('detailDialog').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
 document.querySelectorAll('.library-tab').forEach(btn=>btn.onclick=()=>{libraryMode=btn.dataset.mode;renderLibraryTabs();renderLibrary()});
-document.getElementById('jsonOpenBtn').onclick=openJson;\ndocument.getElementById('jsonBackupBtn').onclick=exportJsonBackup;\ndocument.getElementById('sharedReloadBtn').onclick=()=>loadShared();
+document.getElementById('jsonOpenBtn').onclick=openJson;
+document.getElementById('jsonBackupBtn').onclick=exportJsonBackup;
+document.getElementById('sharedReloadBtn').onclick=()=>loadShared();
 document.getElementById('jsonSaveBtn').onclick=saveJson;
 document.getElementById('jsonFileInput').onchange=e=>{const file=e.target.files?.[0];loadJsonFile(file);e.target.value=''};
 window.addEventListener('beforeunload',e=>{if(!dirty)return;e.preventDefault();e.returnValue=''});
