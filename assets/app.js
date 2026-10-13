@@ -253,7 +253,6 @@ let lastRemoteCheck=0;
 let editRevision=0;
 let voteSaveTimer=null;
 let libraryDropBound=false;
-let lastRenderedLibraryMode=null;
 function queueVoteSave(){
   clearTimeout(voteSaveTimer);
   voteSaveTimer=setTimeout(()=>{
@@ -502,8 +501,8 @@ function bindRouteCards(root){
 }
 function renderLibrary(){
   const root=document.getElementById('placeLibrary');
-  if(libraryMode==='routes'){root.innerHTML=renderRoutesGrouped();lastRenderedLibraryMode='routes';bindRouteCards(root);return}
-  const list=places.filter(p=>!PLACE_LIBRARY_EXCLUDE.has(p.id));root.innerHTML=renderPlacesGrouped(list);lastRenderedLibraryMode='places';bindLibraryPlaceCards(root);
+  if(libraryMode==='routes'){root.innerHTML=renderRoutesGrouped();bindRouteCards(root);return}
+  const list=places.filter(p=>!PLACE_LIBRARY_EXCLUDE.has(p.id));root.innerHTML=renderPlacesGrouped(list);bindLibraryPlaceCards(root);
 }
 
 function minutes(v){if(!v||!/^[0-2]\d:[0-5]\d$/.test(v))return null;const [h,m]=v.split(':').map(Number);return h*60+m}
