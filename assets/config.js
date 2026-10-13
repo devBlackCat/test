@@ -1,2 +1,2 @@
-// Cloudflare Worker 배포 후 주소를 입력합니다. 끝의 슬래시는 생략하세요.
-window.TRIP_API_URL = '';
+// Public Google Apps Script web-app endpoint; no credentials are stored in this file.
+window.TRIP_API_URL = 'https://script.google.com/macros/s/AKfycbwOuGzKBeCCsM65Utb7nqlvC5IZBn5XosvBgEmWc7oyuU-q_QNTVQMGpg74cjoBeo2Uew/exec';
