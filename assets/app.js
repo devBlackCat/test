@@ -430,6 +430,16 @@ function renderPlaceVote(placeId){
     <button type="button" class="vote-btn ${vote==='down'?'selected down':''}" data-vote="down" data-vote-place="${escapeHtml(placeId)}" aria-pressed="${vote==='down'}">👎 비추천</button>
   </div>`;
 }
+function refreshVoteButtons(placeId){
+  document.querySelectorAll('[data-vote-place]').forEach(btn=>{
+    if(btn.dataset.votePlace!==placeId)return;
+    const selected=state.placeVotes?.[placeId]===btn.dataset.vote;
+    btn.classList.toggle('selected',selected);
+    btn.classList.toggle('up',selected&&btn.dataset.vote==='up');
+    btn.classList.toggle('down',selected&&btn.dataset.vote==='down');
+    btn.setAttribute('aria-pressed',String(selected));
+  });
+}
 function bindPlaceVotes(root=document){
   root.querySelectorAll('[data-vote-place]').forEach(btn=>btn.onclick=e=>{
     e.preventDefault();e.stopPropagation();
@@ -437,13 +447,11 @@ function bindPlaceVotes(root=document){
     if(!placeById(id))return;
     state.placeVotes[id]=state.placeVotes[id]===vote?'':vote;
     persist();
-    renderLibrary();renderBoard();
-    if(selectedPlace?.id===id){
-      const detail=document.getElementById('detailVote');
-      if(detail){detail.innerHTML=renderPlaceVote(id);bindPlaceVotes(detail);}
-    }
+    // 클릭할 때 목록/일정표 DOM 전체를 다시 만들지 않습니다.
+    // 기존 전체 재렌더링은 사용자가 새로고침으로 인식하고 조작 중인 화면을 초기화했습니다.
+    refreshVoteButtons(id);
     queueVoteSave();
-    toast('방문 의견을 자동 저장합니다.');
+    toast('방문 의견을 자동 저장합니다. 저장 완료 표시를 확인하세요.');
   });
 }
 function renderPlaceCard(p){
