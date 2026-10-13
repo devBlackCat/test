@@ -10,7 +10,7 @@
   <header class="topbar">
     <div class="brand">
       <div class="brand-mark">N</div>
-      <div><p class="eyebrow">2027 MAY · KANSAI · v14</p><h1>Nintendo × Pokémon 일정 편집기</h1></div>
+      <div><p class="eyebrow">2027 MAY · KANSAI · v15</p><h1>Nintendo × Pokémon 일정 편집기</h1></div>
     </div>
     <div class="top-controls">
       <div class="plan-control">
@@ -22,9 +22,9 @@
       </div>
       <button id="recommendBtn" class="btn recommend" type="button">추천 일정</button>
       <button id="resetBtn" class="btn secondary" type="button">현재 일정 비우기</button>
-      <button id="jsonOpenBtn" class="btn secondary" type="button">JSON 열기</button>
-      <button id="jsonSaveBtn" class="btn primary" type="button">JSON 저장</button>
-      <span id="jsonStatus" class="json-status neutral">새 일정 · JSON 미저장</span>
+      <button id="jsonOpenBtn" class="btn secondary" type="button">JSON 가져오기</button>\n      <button id="jsonBackupBtn" class="btn secondary" type="button">JSON 백업</button>\n      <button id="sharedReloadBtn" class="btn secondary" type="button">최신 불러오기</button>
+      <button id="jsonSaveBtn" class="btn primary" type="button">공유 저장</button>
+      <span id="jsonStatus" class="json-status neutral">공유 일정 연결 중</span>
       <input id="jsonFileInput" type="file" accept=".json,application/json" hidden />
     </div>
   </header>
@@ -85,6 +85,6 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-  <script src="assets/app.js"></script>
+  <script src="assets/config.js"></script>\n  <script src="assets/app.js"></script>
 </body>
 </html>
