@@ -625,4 +625,5 @@ renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus('공유 일정 �
 
 // 공유 일정: 수정 중에는 자동 덮어쓰지 않습니다.
 loadShared();
-setInterval(()=>{if(!dirty&&!syncInProgress&&Date.now()-lastRemoteCheck>=30000)loadShared({silent:true});},30000);
+// 변경 사항은 최초 접속과 명시적인 저장 검증 시에만 조회합니다.
+// 다른 브라우저의 변경 내용은 페이지를 새로고침하면 불러옵니다.
