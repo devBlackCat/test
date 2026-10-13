@@ -236,7 +236,7 @@ function setJsonStatus(text,mode='neutral'){
   el.classList.add(mode);
 }
 function markDirty(){dirty=true;setJsonStatus('● 저장 안 됨 · 공유 저장 필요','dirty')}
-function persist(){editRevision++;markDirty()}
+function persist(){editRevision++;markDirty();queueVoteSave()}
 function buildJsonPayload(){
   return {format:JSON_FORMAT,version:JSON_VERSION,savedAt:new Date().toISOString(),state};
 }
@@ -450,7 +450,6 @@ function bindPlaceVotes(root=document){
     // 클릭할 때 목록/일정표 DOM 전체를 다시 만들지 않습니다.
     // 기존 전체 재렌더링은 사용자가 새로고침으로 인식하고 조작 중인 화면을 초기화했습니다.
     refreshVoteButtons(id);
-    queueVoteSave();
     toast('방문 의견을 자동 저장합니다. 저장 완료 표시를 확인하세요.');
   });
 }
@@ -612,7 +611,8 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 
 // UI bindings
 document.querySelectorAll('.start-btn').forEach(b=>b.onclick=()=>setStartDay(b.dataset.start));
-document.getElementById('customForm').addEventListener('submit',e=>{e.preventDefault();addCustom();document.getElementById('customDialog').close()});
+document.getElementById('customForm').addEventListener('submit',e=>{e.preventDefault();if(e.submitter?.id!=='customSubmit')return;addCustom();document.getElementById('customDialog').close()});
+document.querySelectorAll('#customDialog [data-custom-cancel]').forEach(btn=>btn.addEventListener('click',()=>document.getElementById('customDialog').close()));
 document.getElementById('detailAddBtn').onclick=()=>{if(selectedPlace)openAddDialog({type:'place',id:selectedPlace.id})};
 document.getElementById('detailCloseBtn').onclick=()=>document.getElementById('detailDialog').close();
 document.getElementById('detailDialog').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
