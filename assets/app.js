@@ -557,7 +557,7 @@ document.getElementById('jsonFileInput').onchange=e=>{const file=e.target.files?
 window.addEventListener('beforeunload',e=>{if(!dirty)return;e.preventDefault();e.returnValue=''});
 window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveJson()}});
 
-renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus('새 일정 · JSON 미저장','neutral');
+renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus('공유 일정 연결 중','neutral');
 
 // 공유 일정: 수정 중에는 자동 덮어쓰지 않습니다.
 loadShared();
