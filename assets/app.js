@@ -274,8 +274,11 @@ async function loadShared({silent=false,force=false}={}){
     if(result.version===remoteSha&&!force){if(!silent)setJsonStatus('✓ 최신 공유 일정','saved');return;}
     if(result.data){
       state=normalizeImportedState(result.data);
-      ensureState();migrateLegacyRoutes();renderAll();
+      ensureState();migrateLegacyRoutes();
+      if(!silent||remoteSha===null)selectPlanWithSavedItems();
+      renderAll();
     }
+    if(!result.data&&(!silent||remoteSha===null)){selectPlanWithSavedItems();renderBoard();}
     remoteSha=result.version;dirty=false;
     setJsonStatus(result.data?'✓ 공유 일정 동기화됨':'✓ 공유 일정 준비됨 · 최초 저장 가능','saved');
     if(!silent)toast('공유 일정을 불러왔습니다.');
@@ -334,7 +337,7 @@ async function loadJsonFile(file,fileHandle=null){
   if(!file)return;
   try{
     const data=JSON.parse(await file.text());
-    state=normalizeImportedState(data);ensureState();migrateLegacyRoutes();
+    state=normalizeImportedState(data);ensureState();migrateLegacyRoutes();selectPlanWithSavedItems();
     currentFileHandle=fileHandle;currentFileName=file.name||'trip.json';markDirty();
     renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus(`● ${currentFileName} · 공유 저장 필요`,'dirty');toast('JSON 일정을 불러왔습니다.');
   }catch(err){
@@ -345,6 +348,12 @@ function schedulePlaceIds(){
   const ids=new Set();Object.values(currentSchedule()).flat().forEach(item=>{if(item.placeId)ids.add(item.placeId);if(item.routeId){const g=routeById(item.routeId);(item.memberIds||g?.placeIds||[]).forEach(id=>ids.add(id))}});return ids;
 }
 function planCount(planName){return Object.values(state.plans[planName]||{}).reduce((n,list)=>n+list.length,0)}
+function selectPlanWithSavedItems(){
+  const has12=planCount('use12')>0;
+  const has13=planCount('start13')>0;
+  // 둘 다 있거나 둘 다 비었으면 B(13일 출발)를 기본으로 표시합니다.
+  state.activePlan=has12&&!has13?'use12':'start13';
+}
 function regionKey(p){return PLACE_AREA[p?.id]||'transfer'}
 function placeType(p){
   if(!p)return 'all';
