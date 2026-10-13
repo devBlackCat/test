@@ -350,7 +350,7 @@ async function openJson(){
       if(!handle)return;const file=await handle.getFile();await loadJsonFile(file,handle);return;
     }
   }catch(err){if(err?.name==='AbortError')return;console.error(err)}
-  document.getElementById('jsonFileInput').click();
+  toast('JSON 가져오기 메뉴는 제거되었습니다.');
 }
 async function loadJsonFile(file,fileHandle=null){
   if(!file)return;
@@ -609,24 +609,15 @@ function applyRecommendedSchedule(hotelId='firstcabin'){
 function setStartDay(day){state.activePlan=day==='12'?'use12':'start13';persist();renderBoard();toast(day==='12'?'A · 12일 밤 출발 일정':'B · 13일 출발 일정')}
 function resetAll(){if(!confirm('현재 보고 있는 일정만 모두 비울까요?'))return;state.plans[state.activePlan]=blankPlan(state.activePlan==='use12');persist();renderBoard();renderLibrary();toast('현재 일정을 비웠습니다.')}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),1800)}
-function openRecommendation(){document.getElementById('recommendDialog').showModal()}
-function applyRecommendationFromDialog(){const selected=document.querySelector('input[name="recommendHotel"]:checked')?.value||'firstcabin';document.getElementById('recommendDialog').close();applyRecommendedSchedule(selected)}
 
 // UI bindings
 document.querySelectorAll('.start-btn').forEach(b=>b.onclick=()=>setStartDay(b.dataset.start));
-document.getElementById('recommendBtn').onclick=openRecommendation;
-document.getElementById('recommendApplyBtn').onclick=applyRecommendationFromDialog;
-document.getElementById('resetBtn').onclick=resetAll;
 document.getElementById('customForm').addEventListener('submit',e=>{e.preventDefault();addCustom();document.getElementById('customDialog').close()});
 document.getElementById('detailAddBtn').onclick=()=>{if(selectedPlace)openAddDialog({type:'place',id:selectedPlace.id})};
 document.getElementById('detailCloseBtn').onclick=()=>document.getElementById('detailDialog').close();
 document.getElementById('detailDialog').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
 document.querySelectorAll('.library-tab').forEach(btn=>btn.onclick=()=>{libraryMode=btn.dataset.mode;renderLibraryTabs();renderLibrary()});
-document.getElementById('jsonOpenBtn').onclick=openJson;
-document.getElementById('jsonBackupBtn').onclick=exportJsonBackup;
-document.getElementById('sharedReloadBtn').onclick=()=>loadShared({force:true});
 document.getElementById('jsonSaveBtn').onclick=saveJson;
-document.getElementById('jsonFileInput').onchange=e=>{const file=e.target.files?.[0];loadJsonFile(file);e.target.value=''};
 window.addEventListener('beforeunload',e=>{if(!dirty)return;e.preventDefault();e.returnValue=''});
 window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveJson()}});
 
