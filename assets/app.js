@@ -252,11 +252,12 @@ let syncInProgress=false;
 let lastRemoteCheck=0;
 let editRevision=0;
 let voteSaveTimer=null;
+let libraryDropBound=false;
 function queueVoteSave(){
   clearTimeout(voteSaveTimer);
   voteSaveTimer=setTimeout(()=>{
     if(syncInProgress){queueVoteSave();return;}
-    if(remoteSha===null){setJsonStatus('● 연결 대기 · 추천 의견 미저장','dirty');return;}
+    if(remoteSha===null){setJsonStatus('● 연결 대기 · 변경 사항 미저장','dirty');return;}
     saveJson();
   },900);
 }
@@ -276,7 +277,7 @@ function fetchSharedJsonp(){
 }
 async function loadShared({silent=false,force=false}={}){
   if(syncInProgress)return;
-  if(dirty&&!force){if(!silent)toast('저장하지 않은 변경이 있습니다. JSON 백업하거나 저장한 뒤 다시 불러오세요.');return;}
+  if(dirty&&!force){if(!silent)toast('미저장 변경 사항이 있습니다. 공유 저장 후 새로고침하세요.');return;}
   if(force&&dirty&&!confirm('저장하지 않은 변경을 버리고 최신 공유 일정을 불러올까요?'))return;
   syncInProgress=true;
   try{
@@ -329,7 +330,7 @@ async function saveJson(){
       toast('Google Sheets에 저장했습니다.');
     }else if(latest?.success&&latest.version!==baseVersion){
       setJsonStatus('⚠ 다른 사용자의 저장 내용 발견','dirty');
-      toast('충돌 발생: JSON 백업 후 최신 불러오기를 사용하세요.');
+      toast('저장 충돌: 다른 사용자 변경 사항이 있습니다. 페이지를 새로고침하기 전 현재 수정 내용을 확인하세요.');
     }else{
       setJsonStatus('● 저장 확인 실패 · 변경 유지','dirty');
       toast('저장 여부를 확인할 수 없습니다. 잠시 뒤 최신 조회 후 확인하세요.');
@@ -550,7 +551,8 @@ function getDropIndex(zone,clientY){const cards=[...zone.querySelectorAll('.sche
 function bindScheduleDrag(){
   document.querySelectorAll('.schedule-card').forEach(card=>{card.addEventListener('dragstart',e=>{if(e.target.closest('input,button,label')){e.preventDefault();return}draggedSchedule={uid:card.dataset.item,from:card.dataset.day};card.classList.add('dragging');e.dataTransfer.setData('text/schedule',card.dataset.item);e.dataTransfer.effectAllowed='move'});card.addEventListener('dragend',()=>{card.classList.remove('dragging');document.querySelectorAll('.dragover,.library-drop-active').forEach(el=>el.classList.remove('dragover','library-drop-active'));draggedSchedule=null})});
   document.querySelectorAll('.drop-zone').forEach(zone=>{zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');e.dataTransfer.dropEffect=(e.dataTransfer.types.includes('text/place')||e.dataTransfer.types.includes('text/route'))?'copy':'move'});zone.addEventListener('dragleave',e=>{if(!zone.contains(e.relatedTarget))zone.classList.remove('dragover')});zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');const day=zone.dataset.day,targetIndex=getDropIndex(zone,e.clientY),placeId=e.dataTransfer.getData('text/place');if(placeId){addPlaceToDay(placeId,day,targetIndex);return}const routeId=e.dataTransfer.getData('text/route');if(routeId){const ids=selectedRouteIds(routeId);if(ids.length)addRouteToDay(routeId,day,targetIndex,ids);return}if(draggedSchedule)moveItem(draggedSchedule.uid,draggedSchedule.from,day,targetIndex)})});
-  const library=document.getElementById('libraryPanel');library.addEventListener('dragover',e=>{if(!draggedSchedule)return;e.preventDefault();library.classList.add('library-drop-active');e.dataTransfer.dropEffect='move'});library.addEventListener('dragleave',e=>{if(!library.contains(e.relatedTarget))library.classList.remove('library-drop-active')});library.addEventListener('drop',e=>{if(!draggedSchedule)return;e.preventDefault();library.classList.remove('library-drop-active');removeItem(draggedSchedule.uid,draggedSchedule.from);toast('일정에서 뺐습니다.')});
+  const library=document.getElementById('libraryPanel');
+  if(!libraryDropBound){libraryDropBound=true;library.addEventListener('dragover',e=>{if(!draggedSchedule)return;e.preventDefault();library.classList.add('library-drop-active');e.dataTransfer.dropEffect='move'});library.addEventListener('dragleave',e=>{if(!library.contains(e.relatedTarget))library.classList.remove('library-drop-active')});library.addEventListener('drop',e=>{if(!draggedSchedule)return;e.preventDefault();library.classList.remove('library-drop-active');removeItem(draggedSchedule.uid,draggedSchedule.from);draggedSchedule=null;toast('일정에서 뺐습니다.')});}
   document.querySelectorAll('.remove-btn').forEach(b=>b.onclick=()=>removeItem(b.dataset.item,b.dataset.day));
   document.querySelectorAll('.detail-btn').forEach(b=>b.onclick=()=>selectPlace(b.dataset.place));
   document.querySelectorAll('[data-place-inline]').forEach(b=>b.onclick=()=>selectPlace(b.dataset.placeInline));
