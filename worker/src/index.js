@@ -23,7 +23,7 @@ export default {
       const resp=await fetch(url,{headers:ghHeaders,cf:{cacheTtl:0}});
       if(!resp.ok)throw new Error('GitHub 읽기 실패 ('+resp.status+')');
       const file=await resp.json();
-      const encoded=(file.content||'').replace(/\\s/g,'');
+      const encoded=(file.content||'').replace(/\s/g,'');
       const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));
       return {sha:file.sha,data:JSON.parse(new TextDecoder().decode(bytes))};
     }
