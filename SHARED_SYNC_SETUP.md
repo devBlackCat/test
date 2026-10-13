@@ -1,17 +1,28 @@
-# v15 공유 일정 편집기 설정
+# v15 Google Sheets 공유 저장 연결 안내
 
-기존 GitHub Pages에서 같은 일정을 함께 볼 수 있도록 Cloudflare Worker와 GitHub Contents API를 사용합니다. **이 브랜치는 아직 배포되지 않았습니다.**
+현재 main은 **Google Apps Script 웹 앱 + Google Sheets**를 사용합니다. Cloudflare Worker나 GitHub Contents API는 사용하지 않습니다. `worker/`와 `data/schedule.json`은 이전 구현 유산이며 현재 사이트의 저장 대상이 아닙니다.
 
-1. GitHub에서 이 브랜치를 검토한 뒤 main에 병합합니다. `data/schedule.json`이 공통 저장 파일입니다.
-2. Cloudflare Workers에 `worker/`를 배포합니다. (예: `cd worker && npx wrangler deploy`)
-3. Worker Secret `GITHUB_TOKEN` (해당 저장소 Contents 읽기/쓰기 권한의 최소 범위 fine-grained PAT)와 `EDIT_KEY` (친구 공유 편집 비밀번호)를 설정합니다. 예: `npx wrangler secret put GITHUB_TOKEN`, `npx wrangler secret put EDIT_KEY`.
-4. `worker/wrangler.jsonc`의 `GITHUB_BRANCH`는 실제 Pages에서 사용하는 브랜치로 설정합니다. 기본값 main. `SITE_ORIGIN`은 Pages origin만 입력합니다.
-5. Worker URL을 `assets/config.js`의 `window.TRIP_API_URL`에 설정해 배포합니다. 예: `https://kansai-trip-sync.<계정>.workers.dev`.
-6. PC와 휴대폰에서 접속해 저장/재접속/충돌을 테스트합니다.
+## 연결
 
-- 접속 시 GET으로 현재 GitHub JSON을 읽고, 수동 저장 시 PUT으로 갱신합니다. 열려 있는 화면은 변경되지 않은 상태에서만 30초마다 자동 갱신합니다.
-- 다른 사람이 먼저 저장하면 409가 발생하며 내 미저장 데이터는 유지됩니다. JSON 백업한 뒤 최신 불러오기 및 수동 병합하세요.
-- 기존 JSON 가져오기와 JSON 백업은 남겨 두었습니다.
-- **보안**: GitHub PAT는 프론트 코드에 넣지 않습니다. Worker Secret에만 둡니다. 공용 편집 비밀번호는 저장시 입력 후 탭 sessionStorage에만 유지됩니다.
-- 공개 저장소의 일정 JSON과 Git 커밋 기록은 모두 공개됩니다. 개인 정보나 비밀을 여기에 넣지 마세요.
-- GitHub API 기반 저장은 실시간 공동 편집이 아니라 버전 기반 공유 저장입니다.
+- GitHub Pages: https://devblackcat.github.io/test/
+- 브라우저 엔드포인트: `assets/config.js`의 `window.TRIP_API_URL`
+- Google Sheets: 연결된 시트 `schedule`; A1=version, B1=json, C1=updatedAt, D1=requestId(선택)
+- Apps Script: `doGet`(JSON 및 callback= JSONP) + `doPost`(form-urlencoded payload)
+
+## 실제 작동 조건
+
+1. Apps Script를 웹 앱으로 배포하고 실행 사용자는 **나**, 접근 권한은 **모든 사용자**로 설정합니다.
+2. `Code.gs`가 `doGet` JSONP와 `doPost`의 `payload` 요청 처리를 지원해야 합니다. 새 버전 배포 필요.
+3. 접속 시 최신 일정을 읽습니다. 수동 공유 저장 후 서버에 같은 requestId가 기록됐는지 재조회합니다.
+4. 읽기/쓰기 응답은 브라우저에서 확인해야 합니다. `fetch(mode:'no-cors')`는 저장 성공 여부를 알려주지 않으므로 재조회 검증을 사용합니다.
+5. 두 명이 같은 버전에서 저장하면 Apps Script에서 버전 검사하고 충돌을 막습니다. 클라이언트는 미저장 변경을 보존합니다.
+
+## 테스트
+
+1. 사이트에서 Ctrl+F5 새로고침 후 공유 일정 준비됨 확인
+2. 장소 추가 → 공유 저장 → Google Sheets A2 버전 증가, B2 JSON 데이터 확인
+3. 다른 브라우저에서 접속 후 동일 일정 확인
+4. 서로 다른 두 브라우저에서 같은 버전을 수정하고 순서대로 저장해 충돌 경고 확인
+5. 시트에 개인정보나 비밀을 입력하지 않았는지 확인
+
+**보안 경고:** 편집 인증이 없으므로 공개 웹 앱 URL을 아는 누구든 데이터를 수정할 수 있습니다. 웹 앱 URL과 시트 데이터는 비밀이 아니라고 가정해야 합니다. 고의적인 변조를 차단하려면 인증 구성이 추가로 필요합니다.
