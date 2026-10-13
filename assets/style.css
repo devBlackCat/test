@@ -56,3 +56,8 @@
 .vote-btn.selected.up{background:#e6f6ed;border-color:#48a778;color:#176a3f}
 .vote-btn.selected.down{background:#fcecec;border-color:#e58a8a;color:#aa3434}
 #detailVote .place-vote{margin:12px 0}
+
+/* Front-end rendering optimization: defer off-screen place card layout/paint. */
+@supports (content-visibility:auto){
+  .place-card{content-visibility:auto;contain-intrinsic-size:auto 140px}
+}
