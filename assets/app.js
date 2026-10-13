@@ -244,67 +244,76 @@ function downloadJsonText(text,filename){
   const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),0);
 }
-const API_URL=(window.TRIP_API_URL||'').replace(/\/$/,'');
+const API_URL=window.TRIP_API_URL||'';
 let remoteSha=null;
 let syncInProgress=false;
 let lastRemoteCheck=0;
 function renderAll(){renderLibraryTabs();renderLibrary();renderBoard();}
-async function apiRequest(method,body,editKey){
-  if(!API_URL)throw new Error('API 주소 미설정: assets/config.js에서 TRIP_API_URL을 설정하세요.');
-  const response=await fetch(API_URL+'/api/plan',{
-    method,cache:'no-store',
-    headers:{...(body?{'Content-Type':'application/json'}:{}),...(editKey?{'X-Edit-Key':editKey}:{})},
-    ...(body?{body:JSON.stringify(body)}:{})
+function fetchSharedJsonp(){
+  return new Promise((resolve,reject)=>{
+    if(!API_URL)return reject(new Error('Google Apps Script URL이 설정되지 않았습니다.'));
+    const cb='tripCallback_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const script=document.createElement('script');
+    const timer=setTimeout(()=>finish(new Error('조회 시간 초과')),12000);
+    function finish(err,data){clearTimeout(timer);delete window[cb];script.remove();err?reject(err):resolve(data);}
+    window[cb]=data=>finish(null,data);
+    script.onerror=()=>finish(new Error('Google Sheets 연결 실패'));
+    script.src=API_URL+(API_URL.includes('?')?'&':'?')+'callback='+encodeURIComponent(cb)+'&_='+Date.now();
+    document.head.appendChild(script);
   });
-  let result;
-  try{result=await response.json()}catch{throw new Error('API가 JSON 응답을 반환하지 않았습니다.');}
-  if(!response.ok){
-    const error=new Error(result.error||'HTTP '+response.status);
-    error.status=response.status;
-    throw error;
-  }
-  return result;
 }
-async function loadShared({silent=false}={}){
-  if(!API_URL){setJsonStatus('공유 API 주소 설정 필요','dirty');return;}
-  if(syncInProgress||dirty){if(!silent&&dirty)toast('저장하지 않은 변경이 있습니다. 먼저 저장하세요.');return;}
+async function loadShared({silent=false,force=false}={}){
+  if(syncInProgress)return;
+  if(dirty&&!force){if(!silent)toast('저장하지 않은 변경이 있습니다. JSON 백업하거나 저장한 뒤 다시 불러오세요.');return;}
+  if(force&&dirty&&!confirm('저장하지 않은 변경을 버리고 최신 공유 일정을 불러올까요?'))return;
   syncInProgress=true;
   try{
-    const result=await apiRequest('GET');
-    if(!result.data||!result.sha)throw new Error('공유 일정 응답 형식이 올바르지 않습니다.');
-    if(remoteSha===result.sha){if(!silent)setJsonStatus('✓ 최신 공유 일정','saved');return;}
-    state=normalizeImportedState(result.data);
-    ensureState();migrateLegacyRoutes();
-    remoteSha=result.sha;dirty=false;renderAll();
-    setJsonStatus('✓ 공유 일정 동기화됨','saved');
-    if(!silent)toast('최신 공유 일정을 불러왔습니다.');
-  }catch(err){
-    console.error('Shared load:',err);
-    setJsonStatus('공유 일정 불러오기 실패','dirty');
-    if(!silent)toast('공유 일정 불러오기 실패: '+err.message);
-  }finally{syncInProgress=false;lastRemoteCheck=Date.now();}
+    const result=await fetchSharedJsonp();
+    if(!result.success)throw new Error(result.error||'조회 실패');
+    if(!Number.isSafeInteger(result.version))throw new Error('잘못된 공유 데이터 버전');
+    if(result.version===remoteSha&&!force){if(!silent)setJsonStatus('✓ 최신 공유 일정','saved');return;}
+    if(result.data){
+      state=normalizeImportedState(result.data);
+      ensureState();migrateLegacyRoutes();renderAll();
+    }
+    remoteSha=result.version;dirty=false;
+    setJsonStatus(result.data?'✓ 공유 일정 동기화됨':'✓ 공유 일정 준비됨 · 최초 저장 가능','saved');
+    if(!silent)toast('공유 일정을 불러왔습니다.');
+  }catch(err){console.error('Shared load:',err);setJsonStatus('공유 일정 조회 실패','dirty');if(!silent)toast('조회 실패: '+err.message);}
+  finally{syncInProgress=false;lastRemoteCheck=Date.now();}
 }
 async function saveJson(){
-  if(syncInProgress){toast('동기화 진행 중입니다.');return;}
-  if(!API_URL){toast('공유 API가 설정되지 않았습니다.');return;}
-  if(!remoteSha){toast('먼저 서버의 공유 일정을 불러오세요.');await loadShared();return;}
-  let editKey=sessionStorage.getItem('trip-edit-key')||'';
-  if(!editKey){
-    editKey=prompt('친구들과 공유한 편집 비밀번호를 입력하세요.')||'';
-    if(!editKey)return;
-  }
-  syncInProgress=true;
+  if(syncInProgress){toast('동기화 중입니다.');return;}
+  if(remoteSha===null){toast('먼저 공유 일정을 불러옵니다.');await loadShared();return;}
+  const requestId='req_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  const baseVersion=remoteSha;
+  const payload=JSON.stringify({baseVersion,requestId,data:buildJsonPayload()});
+  syncInProgress=true;setJsonStatus('공유 일정 저장 중 · 확인 대기','neutral');
   try{
-    const result=await apiRequest('PUT',{baseSha:remoteSha,data:buildJsonPayload()},editKey);
-    remoteSha=result.sha;dirty=false;
-    sessionStorage.setItem('trip-edit-key',editKey);
-    setJsonStatus('✓ GitHub 공유 저장 완료','saved');toast('모두가 볼 수 있는 일정으로 저장했습니다.');
-  }catch(err){
-    console.error('Shared save:',err);
-    if(err.status===401){sessionStorage.removeItem('trip-edit-key');toast('편집 비밀번호가 잘못됐습니다. 다시 저장하세요.');}
-    else if(err.status===409){setJsonStatus('⚠ 다른 사용자가 먼저 저장함','dirty');toast('충돌: 다른 친구가 먼저 저장했습니다. 현재 변경을 JSON 백업한 후 최신 일정을 불러오세요.');}
-    else {setJsonStatus('● 공유 저장 실패 · 변경 유지','dirty');toast('저장 실패: '+err.message);}
-  }finally{syncInProgress=false;}
+    // Simple POST request; Apps Script does not provide a cross-origin readable POST response.
+    await fetch(API_URL,{method:'POST',mode:'no-cors',body:new URLSearchParams({payload})});
+  }catch(err){console.warn('POST transport uncertain:',err);}
+  try{
+    let latest;
+    for(let attempt=0;attempt<5;attempt++){
+      if(attempt)await new Promise(resolve=>setTimeout(resolve,900));
+      latest=await fetchSharedJsonp();
+      if(latest.success&&latest.requestId===requestId)break;
+      if(latest.success&&latest.version!==baseVersion)break;
+    }
+    if(latest?.success&&latest.requestId===requestId){
+      remoteSha=latest.version;dirty=false;
+      setJsonStatus('✓ Google Sheets 공유 저장 완료','saved');
+      toast('친구들과 공유할 일정이 저장되었습니다.');
+    }else if(latest?.success&&latest.version!==baseVersion){
+      setJsonStatus('⚠ 다른 사용자의 저장 내용 발견','dirty');
+      toast('충돌 발생: JSON 백업 후 최신 불러오기를 사용하세요.');
+    }else{
+      setJsonStatus('● 저장 확인 실패 · 변경 유지','dirty');
+      toast('저장 여부를 확인할 수 없습니다. 잠시 뒤 최신 조회 후 확인하세요.');
+    }
+  }catch(err){console.error('Save verification:',err);setJsonStatus('● 저장 확인 실패 · 변경 유지','dirty');toast('저장 확인 실패: '+err.message);}
+  finally{syncInProgress=false;}
 }
 function exportJsonBackup(){downloadJsonText(JSON.stringify(buildJsonPayload(),null,2),'nintendo-kansai-trip-backup.json');toast('현재 일정을 백업했습니다.');}
 function normalizeImportedState(data){
@@ -326,8 +335,8 @@ async function loadJsonFile(file,fileHandle=null){
   try{
     const data=JSON.parse(await file.text());
     state=normalizeImportedState(data);ensureState();migrateLegacyRoutes();
-    currentFileHandle=fileHandle;currentFileName=file.name||'trip.json';dirty=false;
-    renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus(`✓ ${currentFileName} · 불러옴`,'saved');toast('JSON 일정을 불러왔습니다.');
+    currentFileHandle=fileHandle;currentFileName=file.name||'trip.json';markDirty();
+    renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus(`● ${currentFileName} · 공유 저장 필요`,'dirty');toast('JSON 일정을 불러왔습니다.');
   }catch(err){
     console.error(err);toast('JSON을 불러오지 못했습니다. 파일 형식을 확인하세요.');
   }
@@ -553,7 +562,7 @@ document.getElementById('detailDialog').addEventListener('click',e=>{if(e.target
 document.querySelectorAll('.library-tab').forEach(btn=>btn.onclick=()=>{libraryMode=btn.dataset.mode;renderLibraryTabs();renderLibrary()});
 document.getElementById('jsonOpenBtn').onclick=openJson;
 document.getElementById('jsonBackupBtn').onclick=exportJsonBackup;
-document.getElementById('sharedReloadBtn').onclick=()=>loadShared();
+document.getElementById('sharedReloadBtn').onclick=()=>loadShared({force:true});
 document.getElementById('jsonSaveBtn').onclick=saveJson;
 document.getElementById('jsonFileInput').onchange=e=>{const file=e.target.files?.[0];loadJsonFile(file);e.target.value=''};
 window.addEventListener('beforeunload',e=>{if(!dirty)return;e.preventDefault();e.returnValue=''});
