@@ -1,0 +1,24 @@
+{
+  "format": "nintendo-kansai-trip-planner",
+  "version": 14,
+  "savedAt": null,
+  "state": {
+    "activePlan": "start13",
+    "plans": {
+      "use12": {
+        "12": [],
+        "13": [],
+        "14": [],
+        "15": [],
+        "16": []
+      },
+      "start13": {
+        "13": [],
+        "14": [],
+        "15": [],
+        "16": []
+      }
+    },
+    "reservationDone": {}
+  }
+}
