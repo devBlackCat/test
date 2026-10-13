@@ -1,8 +1,18 @@
-# Nintendo × Pokémon Kansai Trip Dashboard v14
+# Nintendo × Pokémon Kansai Trip Dashboard v15
 
 2027년 5월 간사이 여행 일정 편집기입니다. `index.html`을 Chrome/Edge에서 열면 됩니다.
 
-## v14 핵심 변경 — localStorage 제거, JSON 파일 저장
+## v15 공유 저장 (현재 main)
+
+- 현재 저장소는 Google Apps Script + Google Sheets를 공통 데이터 저장소로 사용합니다.
+- `assets/config.js`의 `TRIP_API_URL`은 공개 가능한 읽기/쓰기 웹 앱 URL입니다. 비밀번호나 계정 토큰은 아닙니다.
+- 사이트 실행 시 공유 일정을 조회하고, `공유 저장` 시 POST 후 JSONP 조회로 실제 반영 여부를 확인합니다.
+- 인증 없는 공개 쓰기 API입니다. 여행 일정에 개인정보·예약번호·연락처를 기록하지 마세요.
+- 저장 충돌이나 확인 실패 시 JSON 백업 후 재조회하세요.
+- 현재 main의 `worker/`와 `data/schedule.json`은 사용하지 않는 과거 Cloudflare/GitHub 방식의 파일입니다.
+- 실제 동작 확인은 GitHub Pages에서 저장 → Google Sheets B2 확인 → 다른 브라우저 새로고침으로 진행하세요.
+
+## v14 이전 파일 백업 방식
 
 v14부터 일정/예약 체크 상태를 브라우저 `localStorage`에 저장하지 않습니다.
 
