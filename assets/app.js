@@ -236,7 +236,7 @@ function setJsonStatus(text,mode='neutral'){
   el.classList.add(mode);
 }
 function markDirty(){dirty=true;setJsonStatus('● 저장 안 됨 · 공유 저장 필요','dirty')}
-function persist(){markDirty()}
+function persist(){editRevision++;markDirty()}
 function buildJsonPayload(){
   return {format:JSON_FORMAT,version:JSON_VERSION,savedAt:new Date().toISOString(),state};
 }
@@ -250,6 +250,16 @@ const API_URL=window.TRIP_API_URL||'';
 let remoteSha=null;
 let syncInProgress=false;
 let lastRemoteCheck=0;
+let editRevision=0;
+let voteSaveTimer=null;
+function queueVoteSave(){
+  clearTimeout(voteSaveTimer);
+  voteSaveTimer=setTimeout(()=>{
+    if(syncInProgress){queueVoteSave();return;}
+    if(remoteSha===null){setJsonStatus('● 연결 대기 · 추천 의견 미저장','dirty');return;}
+    saveJson();
+  },900);
+}
 function renderAll(){renderLibraryTabs();renderLibrary();renderBoard();}
 function fetchSharedJsonp(){
   return new Promise((resolve,reject)=>{
@@ -292,6 +302,7 @@ async function saveJson(){
   if(remoteSha===null){toast('먼저 공유 일정을 불러옵니다.');await loadShared();return;}
   const requestId='req_'+Date.now()+'_'+Math.random().toString(36).slice(2);
   const baseVersion=remoteSha;
+  const savingRevision=editRevision;
   const payload=JSON.stringify({baseVersion,requestId,data:buildJsonPayload()});
   syncInProgress=true;setJsonStatus('공유 일정 저장 중 · 확인 대기','neutral');
   try{
@@ -307,9 +318,15 @@ async function saveJson(){
       if(latest.success&&latest.version!==baseVersion)break;
     }
     if(latest?.success&&latest.requestId===requestId){
-      remoteSha=latest.version;dirty=false;
-      setJsonStatus('✓ Google Sheets 공유 저장 완료','saved');
-      toast('친구들과 공유할 일정이 저장되었습니다.');
+      remoteSha=latest.version;
+      if(editRevision===savingRevision){
+        dirty=false;
+        setJsonStatus('✓ Google Sheets 공유 저장 완료','saved');
+      }else{
+        setJsonStatus('● 추가 변경 사항 저장 대기','dirty');
+        queueVoteSave();
+      }
+      toast('Google Sheets에 저장했습니다.');
     }else if(latest?.success&&latest.version!==baseVersion){
       setJsonStatus('⚠ 다른 사용자의 저장 내용 발견','dirty');
       toast('충돌 발생: JSON 백업 후 최신 불러오기를 사용하세요.');
@@ -425,7 +442,8 @@ function bindPlaceVotes(root=document){
       const detail=document.getElementById('detailVote');
       if(detail){detail.innerHTML=renderPlaceVote(id);bindPlaceVotes(detail);}
     }
-    toast('방문 의견이 변경됐습니다. 공유 저장을 눌러 친구들과 공유하세요.');
+    queueVoteSave();
+    toast('방문 의견을 자동 저장합니다.');
   });
 }
 function renderPlaceCard(p){
