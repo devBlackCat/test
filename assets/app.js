@@ -188,7 +188,8 @@ const JSON_VERSION=14;
 let state = {
   activePlan:'start13',
   plans:{use12:{'12':[],'13':[],'14':[],'15':[],'16':[]},start13:{'13':[],'14':[],'15':[],'16':[]}},
-  reservationDone:{}
+  reservationDone:{},
+  placeVotes:{}
 };
 ensureState();
 function migrateLegacyRoutes(){
@@ -220,6 +221,7 @@ function ensureState(){
   ['12','13','14','15','16'].forEach(d=>state.plans.use12[d] ||= []);
   ['13','14','15','16'].forEach(d=>state.plans.start13[d] ||= []);
   state.reservationDone ||= {};
+  state.placeVotes ||= {};
 }
 function currentSchedule(){return state.plans[state.activePlan]}
 function activeDays(){return state.activePlan==='use12'?['12','13','14','15','16']:['13','14','15','16']}
@@ -403,6 +405,29 @@ function bindReservationToggles(root=document){
   });
   root.querySelectorAll('.inline-requirement').forEach(row=>row.onclick=e=>e.stopPropagation());
 }
+function renderPlaceVote(placeId){
+  const vote=state.placeVotes?.[placeId]||'';
+  return `<div class="place-vote" data-vote-row="${escapeHtml(placeId)}" aria-label="장소 추천 여부">
+    <span class="place-vote-label">방문 의견</span>
+    <button type="button" class="vote-btn ${vote==='up'?'selected up':''}" data-vote="up" data-vote-place="${escapeHtml(placeId)}" aria-pressed="${vote==='up'}">👍 추천</button>
+    <button type="button" class="vote-btn ${vote==='down'?'selected down':''}" data-vote="down" data-vote-place="${escapeHtml(placeId)}" aria-pressed="${vote==='down'}">👎 비추천</button>
+  </div>`;
+}
+function bindPlaceVotes(root=document){
+  root.querySelectorAll('[data-vote-place]').forEach(btn=>btn.onclick=e=>{
+    e.preventDefault();e.stopPropagation();
+    const id=btn.dataset.votePlace,vote=btn.dataset.vote;
+    if(!placeById(id))return;
+    state.placeVotes[id]=state.placeVotes[id]===vote?'':vote;
+    persist();
+    renderLibrary();renderBoard();
+    if(selectedPlace?.id===id){
+      const detail=document.getElementById('detailVote');
+      if(detail){detail.innerHTML=renderPlaceVote(id);bindPlaceVotes(detail);}
+    }
+    toast('방문 의견이 변경됐습니다. 공유 저장을 눌러 친구들과 공유하세요.');
+  });
+}
 function renderPlaceCard(p){
   const optionNote=PLACE_OPTION_NOTES[p.id];
   return `<article class="place-card" draggable="true" data-place="${p.id}">
@@ -412,6 +437,7 @@ function renderPlaceCard(p){
       <button class="add-mini" data-add="${p.id}" title="일정에 추가">＋</button>
     </div>
     ${renderRequirementInline(p.id)}
+    ${renderPlaceVote(p.id)}
   </article>`;
 }
 function renderPlacesGrouped(list){
@@ -438,8 +464,8 @@ function renderRoutesGrouped(){
   return MAJOR_ORDER.filter(m=>byMajor[m]?.length).map(major=>`<section class="major-route-section"><div class="major-region-head"><strong>${escapeHtml(major)}</strong><span>${byMajor[major].length}개 동선</span></div><div class="major-route-body">${byMajor[major].map(renderRouteCard).join('')}</div></section>`).join('');
 }
 function bindLibraryPlaceCards(root){
-  root.querySelectorAll('.place-card').forEach(card=>{card.onclick=e=>{if(e.target.closest('[data-add],.inline-requirement'))return;selectPlace(card.dataset.place)};card.addEventListener('dragstart',e=>{if(e.target.closest('button,input,label')){e.preventDefault();return}card.classList.add('dragging');e.dataTransfer.setData('text/place',card.dataset.place);e.dataTransfer.effectAllowed='copy'});card.addEventListener('dragend',()=>card.classList.remove('dragging'))});
-  root.querySelectorAll('[data-add]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();openAddDialog({type:'place',id:btn.dataset.add})});bindReservationToggles(root);
+  root.querySelectorAll('.place-card').forEach(card=>{card.onclick=e=>{if(e.target.closest('[data-add],.inline-requirement,.place-vote'))return;selectPlace(card.dataset.place)};card.addEventListener('dragstart',e=>{if(e.target.closest('button,input,label')){e.preventDefault();return}card.classList.add('dragging');e.dataTransfer.setData('text/place',card.dataset.place);e.dataTransfer.effectAllowed='copy'});card.addEventListener('dragend',()=>card.classList.remove('dragging'))});
+  root.querySelectorAll('[data-add]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();openAddDialog({type:'place',id:btn.dataset.add})});bindReservationToggles(root);bindPlaceVotes(root);
 }
 function bindRouteCards(root){
   root.querySelectorAll('.route-library-card').forEach(card=>{card.addEventListener('dragstart',e=>{if(e.target.closest('button,input,label')){e.preventDefault();return}const routeId=card.dataset.route;if(!selectedRouteIds(routeId).length){e.preventDefault();toast('동선에서 한 곳 이상 선택하세요.');return}card.classList.add('dragging');e.dataTransfer.setData('text/route',routeId);e.dataTransfer.effectAllowed='copy'});card.addEventListener('dragend',()=>card.classList.remove('dragging'))});
@@ -475,7 +501,7 @@ function renderBoard(){
   document.querySelector('[data-plan-count="12"]').textContent=planCount('use12');document.querySelector('[data-plan-count="13"]').textContent=planCount('start13');
   const days=activeDays(),board=document.getElementById('scheduleBoard');board.style.setProperty('--day-count',days.length);
   board.innerHTML=days.map(day=>{const items=currentSchedule()[day]||[];const cards=items.map((item,i)=>`${i?renderMovement(items[i-1],item):''}${renderScheduleCard(item,day,timingWarnings(items,i))}`).join('');return `<section class="day-column" data-day="${day}"><header class="day-head"><div class="day-title-line"><div><span class="day-date">${DAY_META[day].date}</span><span class="day-week">${DAY_META[day].week}</span></div><div class="day-head-actions"><span class="day-count">${items.length}개</span><button type="button" class="day-add-btn" data-custom-day="${day}">＋ 일정</button></div></div></header><div class="drop-zone" data-day="${day}">${items.length?cards:'<div class="empty-drop"><div><b>비어 있음</b>왼쪽 장소·권역 동선을 끌어오세요.</div></div>'}</div></section>`}).join('');
-  bindScheduleDrag();document.querySelectorAll('[data-custom-day]').forEach(btn=>btn.onclick=()=>openCustomForDay(btn.dataset.customDay));updateRequiredWarning();syncCustomDayOptions();bindReservationToggles(board);
+  bindScheduleDrag();bindPlaceVotes(board);document.querySelectorAll('[data-custom-day]').forEach(btn=>btn.onclick=()=>openCustomForDay(btn.dataset.customDay));updateRequiredWarning();syncCustomDayOptions();bindReservationToggles(board);
 }
 function renderScheduleCard(item,day,warnings=[]){
   if(item.routeId)return renderRouteScheduleCard(item,day,warnings);
@@ -484,7 +510,7 @@ function renderScheduleCard(item,day,warnings=[]){
     <div class="card-head"><span class="drag-handle">⠿</span><div class="card-title">${escapeHtml(title)}</div><div class="card-actions">${p?`<button class="card-icon detail-btn" data-place="${p.id}" title="상세">ⓘ</button>`:''}<button class="card-icon remove-btn" data-remove="${item.uid}" data-day="${day}" title="삭제">×</button></div></div>
     ${renderWarnings(warnings)}
     <div class="time-row"><label class="time-field"><span>시작</span><input type="time" value="${item.start||''}" data-time="start" data-item="${item.uid}" data-day="${day}"></label><label class="time-field"><span>종료</span><input type="time" value="${item.end||''}" data-time="end" data-item="${item.uid}" data-day="${day}"></label></div>
-    <div class="card-note">${escapeHtml(note)}</div>${p&&PLACE_OPTION_NOTES[p.id]?`<div class="schedule-option-note">🎮 ${escapeHtml(PLACE_OPTION_NOTES[p.id])}</div>`:''}${p?renderRequirementInline(p.id,'schedule'):''}</article>`;
+    <div class="card-note">${escapeHtml(note)}</div>${p&&PLACE_OPTION_NOTES[p.id]?`<div class="schedule-option-note">🎮 ${escapeHtml(PLACE_OPTION_NOTES[p.id])}</div>`:''}${p?renderRequirementInline(p.id,'schedule'):''}${p?renderPlaceVote(p.id):''}</article>`;
 }
 function renderRouteScheduleCard(item,day,warnings=[]){
   const g=routeById(item.routeId);if(!g)return '';const memberIds=item.memberIds?.length?item.memberIds:g.placeIds;const members=memberIds.map(placeById).filter(Boolean);const shown=item.expanded?members:members.slice(0,2);const reqs=members.filter(p=>RESERVATION_RULES[p.id]);
@@ -526,6 +552,7 @@ function selectPlace(id){
   const tipsSection=document.getElementById('detailTipsSection'),tips=document.getElementById('detailTips');tips.innerHTML=(p.tips||[]).map(t=>`<li>${escapeHtml(t)}</li>`).join('');tipsSection.classList.toggle('hidden',!(p.tips||[]).length);
   document.getElementById('detailFreshness').textContent=`${p.checkedAt||'2026-10'} 확인 기준 · 2027년 5월 방문 전 운영시간·예약·재고를 공식 페이지에서 재확인`;
   const note=document.getElementById('detailReservation'),rule=RESERVATION_RULES[p.id];note.innerHTML=rule?`${renderRequirementInline(p.id,'detail')}`:escapeHtml(p.reservation||'');note.classList.toggle('hidden',!(rule||p.reservation));note.classList.toggle('critical',rule?.level==='required');bindReservationToggles(note);
+  const detailVote=document.getElementById('detailVote');detailVote.innerHTML=renderPlaceVote(p.id);bindPlaceVotes(detailVote);
   const src=document.getElementById('detailSource');if(p.source){src.href=p.source;src.classList.remove('hidden')}else{src.removeAttribute('href');src.classList.add('hidden')};renderRelated(p.id);const dialog=document.getElementById('detailDialog');if(!dialog.open)dialog.showModal();
 }
 function renderRelated(placeId){
