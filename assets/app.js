@@ -378,15 +378,26 @@ async function loadJsonFile(file,fileHandle=null){
     console.error(err);toast('JSON을 불러오지 못했습니다. 파일 형식을 확인하세요.');
   }
 }
+function itemPlaceIds(item){
+  if(item.placeId)return [item.placeId];
+  if(!item.routeId)return [];
+  const group=routeById(item.routeId);
+  const members=Array.isArray(item.memberIds)&&item.memberIds.length?item.memberIds:(group?.placeIds||[]);
+  return members.filter(id=>group?.placeIds.includes(id));
+}
 function schedulePlaceIds(){
-  const ids=new Set();Object.values(currentSchedule()).flat().forEach(item=>{if(item.placeId)ids.add(item.placeId);if(item.routeId){const g=routeById(item.routeId);(item.memberIds||g?.placeIds||[]).forEach(id=>ids.add(id))}});return ids;
+  const ids=new Set();
+  Object.values(currentSchedule()).flat().forEach(item=>itemPlaceIds(item).forEach(id=>ids.add(id)));
+  return ids;
 }
 function planCount(planName){return Object.values(state.plans[planName]||{}).reduce((n,list)=>n+list.length,0)}
 function selectPlanWithSavedItems(){
   const has12=planCount('use12')>0;
   const has13=planCount('start13')>0;
   // 둘 다 있거나 둘 다 비었으면 B(13일 출발)를 기본으로 표시합니다.
-  state.activePlan=has12&&!has13?'use12':'start13';
+  if(has12&&!has13)state.activePlan='use12';
+  else if(has13&&!has12)state.activePlan='start13';
+  // 둘 다 있는 경우에는 공유 JSON에 저장된 사용자의 선택을 보존합니다.
 }
 function regionKey(p){return PLACE_AREA[p?.id]||'transfer'}
 function placeType(p){
@@ -487,16 +498,23 @@ function renderPlacesGrouped(list){
   return MAJOR_ORDER.filter(m=>byMajor[m]?.length).map(major=>`<section class="major-region-section"><div class="major-region-head"><strong>${escapeHtml(major)}</strong><span>${byMajor[major].reduce((n,[,items])=>n+items.length,0)}곳</span></div>${byMajor[major].map(([key,items])=>`<details class="region-group" open><summary><span>${escapeHtml(AREA_META[key]?.label||key)}</span><b>${items.length}</b></summary><div class="region-group-body">${items.map(renderPlaceCard).join('')}</div></details>`).join('')}</section>`).join('');
 }
 function defaultRouteSelection(g){return new Set((g.defaultPlaceIds?.length?g.defaultPlaceIds:g.placeIds).filter(id=>g.placeIds.includes(id)))}
-function selectedRouteIds(routeId){const g=routeById(routeId);if(!g)return[];if(!routeSelections.has(routeId))routeSelections.set(routeId,defaultRouteSelection(g));return [...routeSelections.get(routeId)]}
+function selectedRouteIds(routeId){
+  const g=routeById(routeId);if(!g)return[];
+  if(!routeSelections.has(routeId))routeSelections.set(routeId,defaultRouteSelection(g));
+  const assigned=schedulePlaceIds();
+  return [...routeSelections.get(routeId)].filter(id=>g.placeIds.includes(id)&&!assigned.has(id));
+}
 function renderRouteCard(g){
-  const members=g.placeIds.map(placeById).filter(Boolean),selected=new Set(selectedRouteIds(g.id));
-  const hasRequired=members.some(p=>['required','conditional'].includes(RESERVATION_RULES[p.id]?.level));
+  const members=g.placeIds.map(placeById).filter(Boolean),assigned=schedulePlaceIds();
+  const available=members.filter(p=>!assigned.has(p.id));
+  const selected=new Set(selectedRouteIds(g.id));
+  const hasRequired=available.some(p=>['required','conditional'].includes(RESERVATION_RULES[p.id]?.level));
   return `<article class="route-library-card" draggable="true" data-route="${g.id}">
-    <div class="route-card-top"><div><div class="route-kicker">${escapeHtml(g.region)} · ${escapeHtml(g.duration)}</div><div class="route-title">${escapeHtml(g.title)}</div></div><button class="route-add-selected" data-add-route="${g.id}" title="선택한 장소를 묶음으로 추가">선택 추가</button></div>
+    <div class="route-card-top"><div><div class="route-kicker">${escapeHtml(g.region)} · ${escapeHtml(g.duration)}</div><div class="route-title">${escapeHtml(g.title)}</div></div><button class="route-add-selected" data-add-route="${g.id}" title="선택한 장소를 묶음으로 추가" ${selected.size?"":"disabled"}>선택 추가</button></div>
     <p>${escapeHtml(g.desc)}</p>
-    <div class="route-member-list">${members.map((p,i)=>`<label class="route-member-select"><input type="checkbox" data-route-select="${g.id}" data-place-id="${p.id}" ${selected.has(p.id)?'checked':''}><span class="route-member-index">${i+1}</span><span class="route-member-copy"><strong>${escapeHtml(p.title)}</strong><small>${escapeHtml(p.duration)}${RESERVATION_RULES[p.id]?.level==='required'?' · 예약 필수':''}</small></span><button type="button" class="route-member-info" data-route-member="${p.id}" title="장소 상세">ⓘ</button></label>`).join('')}</div>
+    <div class="route-member-list">${members.map((p,i)=>`<label class="route-member-select ${assigned.has(p.id)?'already-scheduled':''}"><input type="checkbox" data-route-select="${g.id}" data-place-id="${p.id}" ${selected.has(p.id)?'checked':''} ${assigned.has(p.id)?'disabled':''}><span class="route-member-index">${i+1}</span><span class="route-member-copy"><strong>${escapeHtml(p.title)}</strong><small>${escapeHtml(p.duration)}${assigned.has(p.id)?' · 일정에 등록됨':RESERVATION_RULES[p.id]?.level==='required'?' · 예약 필수':''}</small></span><button type="button" class="route-member-info" data-route-member="${p.id}" title="장소 상세">ⓘ</button></label>`).join('')}</div>
     ${g.optionNote?`<div class="route-option-note">${escapeHtml(g.optionNote)}</div>`:''}
-    <div class="route-footer"><span>${selected.size}/${members.length}곳 선택</span>${hasRequired?'<span class="route-reserve-alert">예약/조건 있음</span>':''}</div>
+    <div class="route-footer"><span>${selected.size}/${available.length}곳 선택 · 전체 ${members.length}곳</span>${hasRequired?'<span class="route-reserve-alert">예약/조건 있음</span>':''}</div>
   </article>`;
 }
 function renderRoutesGrouped(){
@@ -509,14 +527,30 @@ function bindLibraryPlaceCards(root){
 }
 function bindRouteCards(root){
   root.querySelectorAll('.route-library-card').forEach(card=>{card.addEventListener('dragstart',e=>{if(e.target.closest('button,input,label')){e.preventDefault();return}const routeId=card.dataset.route;if(!selectedRouteIds(routeId).length){e.preventDefault();toast('동선에서 한 곳 이상 선택하세요.');return}card.classList.add('dragging');e.dataTransfer.setData('text/route',routeId);e.dataTransfer.effectAllowed='copy'});card.addEventListener('dragend',()=>card.classList.remove('dragging'))});
-  root.querySelectorAll('[data-route-select]').forEach(inp=>inp.onchange=e=>{e.stopPropagation();const routeId=inp.dataset.routeSelect,placeId=inp.dataset.placeId,g=routeById(routeId);if(!routeSelections.has(routeId))routeSelections.set(routeId,defaultRouteSelection(g));const set=routeSelections.get(routeId);inp.checked?set.add(placeId):set.delete(placeId);renderLibrary()});
+  root.querySelectorAll('[data-route-select]').forEach(inp=>inp.onchange=e=>{e.stopPropagation();const routeId=inp.dataset.routeSelect,placeId=inp.dataset.placeId,g=routeById(routeId);if(!g||schedulePlaceIds().has(placeId))return;if(!routeSelections.has(routeId))routeSelections.set(routeId,defaultRouteSelection(g));const set=routeSelections.get(routeId);inp.checked?set.add(placeId):set.delete(placeId);renderLibrary()});
   root.querySelectorAll('[data-add-route]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const ids=selectedRouteIds(btn.dataset.addRoute);if(!ids.length){toast('동선에서 한 곳 이상 선택하세요.');return}openAddDialog({type:'route',id:btn.dataset.addRoute,memberIds:ids})});
   root.querySelectorAll('[data-route-member]').forEach(btn=>btn.onclick=e=>{e.preventDefault();e.stopPropagation();selectPlace(btn.dataset.routeMember)});
 }
-function renderLibrary(){
+function renderLibrary(returnedIds=[]){
   const root=document.getElementById('placeLibrary');
-  if(libraryMode==='routes'){root.innerHTML=renderRoutesGrouped();bindRouteCards(root);return}
-  const list=places.filter(p=>!PLACE_LIBRARY_EXCLUDE.has(p.id));root.innerHTML=renderPlacesGrouped(list);bindLibraryPlaceCards(root);
+  const scrollTop=root.scrollTop;
+  if(libraryMode==='routes'){
+    root.innerHTML=renderRoutesGrouped();bindRouteCards(root);root.scrollTop=scrollTop;return;
+  }
+  const assigned=schedulePlaceIds();
+  const list=places.filter(p=>!PLACE_LIBRARY_EXCLUDE.has(p.id)&&!assigned.has(p.id));
+  // The library is an unassigned inventory, not a permanent duplicate of the itinerary.
+  root.innerHTML=renderPlacesGrouped(list)||'<div class="library-empty">모든 장소가 일정에 등록됐습니다. 일정 카드의 ×를 누르면 장소가 다시 표시됩니다.</div>';
+  bindLibraryPlaceCards(root);
+  root.scrollTop=scrollTop;
+  const returned=returnedIds.find(id=>!assigned.has(id)&&!PLACE_LIBRARY_EXCLUDE.has(id));
+  if(returned){
+    const card=[...root.querySelectorAll('[data-place]')].find(el=>el.dataset.place===returned);
+    if(card){
+      card.classList.add('returned-place');
+      card.scrollIntoView({block:'nearest',behavior:'auto'});
+    }
+  }
 }
 
 function minutes(v){if(!v||!/^[0-2]\d:[0-5]\d$/.test(v))return null;const [h,m]=v.split(':').map(Number);return h*60+m}
@@ -574,13 +608,61 @@ function bindScheduleDrag(){
   document.querySelectorAll('[data-route-toggle]').forEach(b=>b.onclick=()=>toggleRouteItem(b.dataset.routeToggle,b.dataset.day));
   document.querySelectorAll('[data-ungroup]').forEach(b=>b.onclick=()=>ungroupRoute(b.dataset.ungroup,b.dataset.day));
 }
-function addPlaceToDay(placeId,day,index=null){const list=currentSchedule()[day],item={uid:uid(),placeId,start:'',end:''};if(index===null||index<0||index>list.length)list.push(item);else list.splice(index,0,item);persist();renderBoard();toast('일정에 추가했습니다.')}
-function addRouteToDay(routeId,day,index=null,memberIds=null){const list=currentSchedule()[day],g=routeById(routeId);const ids=(memberIds?.length?memberIds:selectedRouteIds(routeId)).filter(id=>g?.placeIds.includes(id));if(!ids.length){toast('동선에서 한 곳 이상 선택하세요.');return}const item={uid:uid(),routeId,memberIds:ids,start:'',end:'',expanded:false};if(index===null||index<0||index>list.length)list.push(item);else list.splice(index,0,item);persist();renderBoard();toast('선택한 동선을 묶음으로 추가했습니다.')}
-function removeItem(itemId,day){currentSchedule()[day]=currentSchedule()[day].filter(x=>x.uid!==itemId);persist();renderBoard()}
-function moveItem(itemId,from,to,targetIndex){const fromList=currentSchedule()[from],idx=fromList.findIndex(x=>x.uid===itemId);if(idx<0)return;const [item]=fromList.splice(idx,1),toList=currentSchedule()[to];let insertAt=targetIndex;if(from===to&&idx<insertAt)insertAt--;insertAt=Math.max(0,Math.min(insertAt,toList.length));toList.splice(insertAt,0,item);persist();renderBoard()}
+function addPlaceToDay(placeId,day,index=null){
+  const list=currentSchedule()[day];
+  if(!list||!placeById(placeId))return;
+  const item={uid:uid(),placeId,start:'',end:''};
+  if(index===null||index<0||index>list.length)list.push(item);else list.splice(index,0,item);
+  persist();renderLibrary();renderBoard();toast('일정에 추가했습니다.');
+}
+function addRouteToDay(routeId,day,index=null,memberIds=null){
+  const list=currentSchedule()[day],g=routeById(routeId);
+  if(!list||!g)return;
+  const assigned=schedulePlaceIds();
+  const ids=[...new Set(memberIds?.length?memberIds:selectedRouteIds(routeId))].filter(id=>g.placeIds.includes(id)&&!assigned.has(id));
+  if(!ids.length){toast('추가 가능한 미배정 장소가 없습니다.');return;}
+  const item={uid:uid(),routeId,memberIds:ids,start:'',end:'',expanded:false};
+  if(index===null||index<0||index>list.length)list.push(item);else list.splice(index,0,item);
+  persist();renderLibrary();renderBoard();toast('선택한 동선을 묶음으로 추가했습니다.');
+}
+function removeItem(itemId,day){
+  const list=currentSchedule()[day];
+  if(!list)return;
+  const index=list.findIndex(x=>x.uid===itemId);
+  if(index<0)return;
+  const [removed]=list.splice(index,1);
+  const placeIds=itemPlaceIds(removed);
+  const remaining=schedulePlaceIds();
+  const restored=placeIds.filter(id=>!remaining.has(id));
+  persist();
+  if(placeIds.length&&restored.length&&libraryMode!=='places'){libraryMode='places';renderLibraryTabs();}
+  renderLibrary(restored);renderBoard();
+  toast(restored.length?'장소 목록으로 돌아왔습니다.':placeIds.length?'다른 일정에서 사용 중인 장소는 목록에 남지 않습니다.':'커스텀 일정을 삭제했습니다.');
+}
+function moveItem(itemId,from,to,targetIndex){
+  const fromList=currentSchedule()[from],toList=currentSchedule()[to];
+  if(!fromList||!toList)return;
+  const idx=fromList.findIndex(x=>x.uid===itemId);
+  if(idx<0)return;
+  const [item]=fromList.splice(idx,1);
+  let insertAt=targetIndex;
+  if(from===to&&idx<insertAt)insertAt--;
+  insertAt=Math.max(0,Math.min(insertAt,toList.length));
+  toList.splice(insertAt,0,item);
+  persist();renderLibrary();renderBoard();
+}
 function updateTime(itemId,day,key,value){const item=currentSchedule()[day].find(x=>x.uid===itemId);if(!item)return;item[key]=value;persist();renderBoard()}
 function toggleRouteItem(itemId,day){const item=currentSchedule()[day].find(x=>x.uid===itemId);if(!item)return;item.expanded=!item.expanded;persist();renderBoard()}
-function ungroupRoute(itemId,day){const list=currentSchedule()[day],idx=list.findIndex(x=>x.uid===itemId);if(idx<0)return;const item=list[idx],g=routeById(item.routeId);if(!g)return;const children=(item.memberIds?.length?item.memberIds:g.placeIds).map(id=>({uid:uid(),placeId:id,start:'',end:''}));list.splice(idx,1,...children);persist();renderBoard();toast('동선 묶음을 개별 장소로 풀었습니다.')}
+function ungroupRoute(itemId,day){
+  const list=currentSchedule()[day],idx=list?.findIndex(x=>x.uid===itemId);
+  if(idx===undefined||idx<0)return;
+  const item=list[idx],g=routeById(item.routeId);if(!g)return;
+  const members=itemPlaceIds(item);
+  if(!members.length)return;
+  const children=members.map((id,i)=>({uid:uid(),placeId:id,start:i===0?(item.start||''):'',end:i===members.length-1?(item.end||''):''}));
+  list.splice(idx,1,...children);
+  persist();renderLibrary();renderBoard();toast('동선 묶음을 개별 장소로 풀었습니다.');
+}
 function hasRequiredMuseum(){return schedulePlaceIds().has('museum')}
 function updateRequiredWarning(){document.getElementById('requiredWarning').classList.toggle('hidden',hasRequiredMuseum())}
 
@@ -621,7 +703,7 @@ function applyRecommendedSchedule(hotelId='firstcabin'){
   const target=state.plans.use12,hasAny=Object.values(target).some(items=>items.length);if(hasAny&&!confirm('12일 밤 출발 일정을 비우고 추천 일정을 불러올까요?'))return;state.activePlan='use12';state.plans.use12=blankPlan(true);
   Object.entries(RECOMMENDED_SCHEDULE).forEach(([day,items])=>{state.plans.use12[day]=items.map(item=>{const cloned=cloneRecommendedItem(item);if(cloned.placeId==='firstcabin')cloned.placeId=hotelId;return cloned})});persist();renderBoard();renderLibrary();toast(hotelId==='nikkokix'?'Hotel Nikko KIX 숙박 추천안을 적용했습니다.':'First Cabin KIX 숙박 추천안을 적용했습니다.')
 }
-function setStartDay(day){state.activePlan=day==='12'?'use12':'start13';persist();renderBoard();toast(day==='12'?'A · 12일 밤 출발 일정':'B · 13일 출발 일정')}
+function setStartDay(day){state.activePlan=day==='12'?'use12':'start13';persist();renderLibrary();renderBoard();toast(day==='12'?'A · 12일 밤 출발 일정':'B · 13일 출발 일정')}
 function resetAll(){if(!confirm('현재 보고 있는 일정만 모두 비울까요?'))return;state.plans[state.activePlan]=blankPlan(state.activePlan==='use12');persist();renderBoard();renderLibrary();toast('현재 일정을 비웠습니다.')}
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),1800)}
 
