@@ -37,3 +37,7 @@
 .route-analysis-actions button.ra-secondary{border:1px solid #d9e2ee;background:#fff;color:#385678}
 .route-analysis-actions button:disabled{opacity:.4;cursor:not-allowed}
 @media(max-width:650px){.route-analysis-shell{padding:16px}.route-analysis-top h2{font-size:20px}.route-analysis-stats{gap:5px}.route-analysis-stats>div{padding:9px 7px}.route-analysis-stats small{font-size:9px}.route-analysis-stats b{font-size:16px}.route-analysis-map svg{height:180px}.route-analysis-actions button{flex:1}}
+
+/* Lightweight distance label on existing movement hints. */
+.route-segment-km{font-size:9px;font-weight:900;color:#385574}
+.route-segment-link{display:inline-block;margin-left:6px;color:#235da9;text-decoration:underline;text-underline-offset:2px;font-size:9px;font-weight:800}
