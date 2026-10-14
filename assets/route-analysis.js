@@ -188,6 +188,18 @@
       btn.textContent="↗ 동선 분석 · "+summaryText(a);
       btn.classList.toggle("route-analyze-warning",a.gain>=0.5&&a.percent>=8);
       btn.title="장소의 대략적 좌표로 계산한 직선거리 비교. 실제 이동 km·시간은 지도에서 확인";
+      const cards=[...column.querySelectorAll(".schedule-card")];
+      for(let i=1;i<cards.length&&i<a.nodes.length;i++){
+        const hint=cards[i].previousElementSibling;
+        if(!hint||!hint.classList.contains("movement-hint"))continue;
+        const km=distance(a.nodes[i-1],a.nodes[i]);
+        if(km===null)continue;
+        const label=document.createElement("span");
+        label.className="route-segment-km";label.textContent=" · 직선 "+fmt(km)+"km";
+        hint.appendChild(label);
+        const url=mapLink(a.nodes[i-1].last,a.nodes[i].first);
+        if(url){const link=document.createElement("a");link.className="route-segment-link";link.href=url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="실제 경로 ↗";link.title="Google 지도에서 대중교통 경로·이동시간 확인";hint.appendChild(link);}
+      }
     });
   }
   let dialog=null, openDay=null, displayMode="current",undo=null;
