@@ -66,3 +66,12 @@
 .place-description{margin-top:4px;color:#657287;font-size:10.5px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .place-card-main .add-mini{align-self:start}
 @media(max-width:980px){.place-description{font-size:11px}}
+
+/* Explicit visual feedback when a scheduled destination returns to the unassigned library. */
+.place-card.returned-place{border-color:#58a184;box-shadow:0 0 0 3px rgba(29,148,96,.16);animation:place-return-highlight 2.2s ease-out}
+@keyframes place-return-highlight{0%,35%{background:#eafaf0}100%{background:#fff}}
+.route-member-select.already-scheduled{background:#f0f2f5;opacity:.66}
+.route-member-select.already-scheduled input{cursor:not-allowed}
+.route-add-selected:disabled{opacity:.48;cursor:not-allowed;background:#f1f3f6;color:#687382}
+.library-empty{margin:8px 0;padding:22px 14px;text-align:center;color:#718096;border:1px dashed #d7dfeb;border-radius:13px;font-size:12px;line-height:1.65}
+@media(prefers-reduced-motion:reduce){.place-card.returned-place{animation:none}}
