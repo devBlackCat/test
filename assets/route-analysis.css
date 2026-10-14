@@ -1,0 +1,39 @@
+/* Route analysis: isolated styles, no existing planner selector overrides. */
+.route-analyze-btn{display:block;width:100%;margin-top:9px;padding:8px 9px;border:1px solid #dce6f4;border-radius:9px;text-align:left;background:#f1f6ff;color:#305e91;font-size:10px;font-weight:800;line-height:1.4;cursor:pointer;white-space:normal}
+.route-analyze-btn:hover,.route-analyze-btn:focus-visible{background:#e6f1ff;outline:2px solid #aecbfa;outline-offset:1px}
+.route-analyze-btn.route-analyze-warning{background:#fff7ed;border-color:#f6d4a9;color:#a35e12}
+.route-analysis-dialog{border:0;padding:0;border-radius:17px;width:min(830px,96vw);max-height:91vh;box-shadow:0 24px 90px rgba(15,23,42,.32);background:#fff;color:#29354a}
+.route-analysis-dialog::backdrop{background:rgba(17,24,39,.55);backdrop-filter:blur(2px)}
+.route-analysis-shell{padding:22px 25px 23px;max-height:90vh;overflow:auto}
+.route-analysis-top{display:flex;justify-content:space-between;align-items:start;gap:18px}
+.route-analysis-top small{font-size:11px;font-weight:800;color:#5470a0}
+.route-analysis-top h2{font-size:23px;margin:4px 0 15px;color:#1d2939}
+.route-analysis-close{flex:none;border:0;border-radius:8px;background:#eff2f6;color:#667085;width:34px;height:34px;font-size:23px;cursor:pointer}
+.route-analysis-disclaimer{border-radius:10px;border:1px solid #dce8f8;background:#f6faff;padding:11px 12px;font-size:12px;line-height:1.65;color:#50627c;margin:0 0 14px}
+.route-analysis-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.route-analysis-stats>div{border:1px solid #e6eaf0;background:#fafbfd;border-radius:11px;padding:12px;min-width:0}
+.route-analysis-stats small{display:block;color:#65758b;font-size:10px;margin-bottom:6px}
+.route-analysis-stats b{display:block;color:#223452;font-size:21px;letter-spacing:-.5px}
+.route-analysis-stats b.better{color:#16724a}
+.route-analysis-explain{font-size:12px;line-height:1.65;color:#59677d;margin:13px 0}
+.route-analysis-tabs{display:flex;gap:7px;margin:10px 0}
+.route-analysis-tabs button{border-radius:9px;border:1px solid #d6deeb;background:#fff;color:#5c6b81;cursor:pointer;padding:8px 13px;font-size:12px;font-weight:800}
+.route-analysis-tabs button.selected{color:#1f5b9e;background:#eaf3ff;border-color:#9cc0f2}
+.route-analysis-map{border:1px solid #e7ecf3;border-radius:12px;padding:9px;margin-bottom:12px}
+.route-analysis-map svg{display:block;width:100%;height:235px}
+.route-drawing-note{font-size:10px;color:#79869b;text-align:center;margin:7px 0 2px;line-height:1.4}
+.route-no-map{padding:40px 10px;text-align:center;color:#7a8799;font-size:12px}
+.route-analysis-order{list-style:none;counter-reset:none;display:grid;gap:0;margin:10px 0 14px;padding:0}
+.route-analysis-order li{border-bottom:1px solid #edf0f4;padding:9px 4px;min-width:0}
+.route-point-row{display:flex;align-items:center;gap:10px}
+.route-point-num{flex:none;width:26px;height:26px;border-radius:50%;background:#eaf3ff;color:#2766ac;display:grid;place-items:center;font-size:12px;font-weight:900}
+.route-point-name{flex:1;font-size:12px;font-weight:800;color:#35445c}
+.route-fixed{font-size:9px;color:#8a641e;background:#fff3da;border-radius:999px;padding:4px 7px}
+.route-leg{margin:8px 0 0 36px;font-size:11px;line-height:1.55;color:#64748b}
+.route-leg a{font-weight:800;color:#285c9e;text-decoration:underline;text-underline-offset:2px}
+.route-analysis-limits{font-size:11px;color:#66748a;line-height:1.65;background:#faf9f5;padding:10px 12px;border-radius:9px;margin:15px 0}
+.route-analysis-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.route-analysis-actions button{border:0;border-radius:9px;padding:10px 13px;color:#fff;background:#2f6fed;font-size:12px;font-weight:800;cursor:pointer}
+.route-analysis-actions button.ra-secondary{border:1px solid #d9e2ee;background:#fff;color:#385678}
+.route-analysis-actions button:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:650px){.route-analysis-shell{padding:16px}.route-analysis-top h2{font-size:20px}.route-analysis-stats{gap:5px}.route-analysis-stats>div{padding:9px 7px}.route-analysis-stats small{font-size:9px}.route-analysis-stats b{font-size:16px}.route-analysis-map svg{height:180px}.route-analysis-actions button{flex:1}}
