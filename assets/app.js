@@ -207,6 +207,8 @@ let state = {
 };
 ensureState();
 function migrateLegacyRoutes(){
+  // Split members that no longer belong to the replacement bundle into individual cards.
+  // In particular, legacy route-kyoto included Marufukuro; silently dropping it loses a stop.
   const map={
     'route-kyoto':['route-kyoto-a',['marufukuro','pkmkyoto','ninkyoto']],
     'route-umeda':['route-osaka-a',['ninosaka','pkmosaka','cardstation']],
@@ -214,7 +216,28 @@ function migrateLegacyRoutes(){
     'route-dendentown':['route-osaka-c',['superpotato','gametanteidan','preyzotaro','preyzmain']],
     'route-usj':['route-osaka-d',['usj','snw']]
   };
-  Object.values(state.plans).forEach(plan=>Object.values(plan).forEach(items=>items.forEach(item=>{const hit=map[item.routeId];if(hit){item.routeId=hit[0];item.memberIds ||= hit[1]}})));
+  for(const plan of Object.values(state.plans)){
+    for(const items of Object.values(plan)){
+      if(!Array.isArray(items))continue;
+      for(let i=items.length-1;i>=0;i--){
+        const item=items[i],mapping=map[item.routeId];
+        if(!mapping)continue;
+        const group=routeById(mapping[0]);
+        if(!group)continue;
+        const original=[...new Set(Array.isArray(item.memberIds)&&item.memberIds.length?item.memberIds:mapping[1])];
+        const matching=original.filter(id=>group.placeIds.includes(id));
+        const extras=original.filter(id=>!group.placeIds.includes(id)&&placeById(id));
+        const additions=extras.map(id=>({uid:uid(),placeId:id,start:'',end:''}));
+        if(matching.length){
+          item.routeId=group.id;
+          item.memberIds=matching;
+          items.splice(i,1,...additions,item);
+        }else{
+          items.splice(i,1,...additions);
+        }
+      }
+    }
+  }
 }
 migrateLegacyRoutes();
 let currentFileHandle=null;
@@ -271,7 +294,7 @@ function queueVoteSave(){
   clearTimeout(voteSaveTimer);
   voteSaveTimer=setTimeout(()=>{
     if(syncInProgress){queueVoteSave();return;}
-    if(remoteSha===null){setJsonStatus('● 연결 대기 · 변경 사항 미저장','dirty');return;}
+    if(remoteSha===null){setJsonStatus('● 공유 연결 필요 · 로컬 변경 유지 · JSON 백업 가능','dirty');return;}
     saveJson();
   },900);
 }
@@ -339,7 +362,22 @@ async function loadShared({silent=false,force=false}={}){
 }
 async function saveJson(){
   if(syncInProgress){toast('동기화 중입니다.');return;}
-  if(remoteSha===null){toast('먼저 공유 일정을 불러옵니다.');await loadShared();return;}
+  if(remoteSha===null){
+    // A failed first read must not strand edits, and must never overwrite unknown
+    // remote data without the user's explicit confirmation.
+    setJsonStatus('공유 서버 확인 중 · 로컬 일정 유지','neutral');
+    try{
+      const snapshot=await fetchSharedJsonp();
+      if(!snapshot.success||!Number.isSafeInteger(snapshot.version))throw new Error(snapshot.error||'공유 정보 조회 실패');
+      if(snapshot.data&&dirty&&!confirm('서버에 공유 일정이 있습니다. 현재 화면의 일정으로 덮어쓰기를 시도할까요? 먼저 JSON 백업을 권장합니다.')){
+        setJsonStatus('● 기존 공유본 보존 · 백업 후 다시 시도','dirty');return;
+      }
+      remoteSha=snapshot.version;
+    }catch(err){
+      setJsonStatus('● 공유 연결 실패 · 로컬 일정 보존 · JSON 백업 가능','dirty');
+      toast('저장 실패: '+err.message);return;
+    }
+  }
   const requestId='req_'+Date.now()+'_'+Math.random().toString(36).slice(2);
   const baseVersion=remoteSha;
   const savingRevision=editRevision;
@@ -581,7 +619,7 @@ function renderLibrary(returnedIds=[]){
   }
 }
 
-function minutes(v){if(!v||!/^[0-2]\d:[0-5]\d$/.test(v))return null;const [h,m]=v.split(':').map(Number);return h*60+m}
+function minutes(v){if(!v||!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v))return null;const [h,m]=v.split(':').map(Number);return h*60+m}
 function itemArea(item){if(item.placeId)return regionKey(placeById(item.placeId));if(item.routeId)return routeById(item.routeId)?.areaKey||null;return null}
 function itemPlaceId(item){return item.placeId||null}
 function renderMovement(prev,curr){
@@ -592,8 +630,14 @@ function renderMovement(prev,curr){
   return `<div class="movement-hint move">↓ ${escapeHtml(areaLabel(a))} → ${escapeHtml(areaLabel(b))} · 이동 필요</div>`;
 }
 function timingWarnings(items,index){
-  if(index===0)return[];const prev=items[index-1],curr=items[index],pe=minutes(prev.end),cs=minutes(curr.start);if(pe===null||cs===null)return[];const gap=cs-pe;const warnings=[];
-  if(gap<0)warnings.push(`앞 일정과 ${Math.abs(gap)}분 겹침`);
+  const curr=items[index],warnings=[];
+  if(curr.start&&minutes(curr.start)===null||curr.end&&minutes(curr.end)===null)warnings.push('시간 형식 확인 필요');
+  // Overnight stays are allowed; don't mistake their next-morning end for a conflict.
+  if(index===0)return warnings;
+  const prev=items[index-1],pe=minutes(prev.end),cs=minutes(curr.start);
+  if(pe===null||cs===null)return warnings;
+  const gap=cs-pe;
+  if(gap<0&&!itemPlaceIds(prev).some(id=>placeById(id)?.tags?.includes('숙박')))warnings.push(`앞 일정과 ${Math.abs(gap)}분 겹침`);
   else if(itemArea(prev)&&itemArea(curr)&&itemArea(prev)!==itemArea(curr)&&gap<15)warnings.push('지역이 바뀌는데 이동 여유가 15분 미만');
   return warnings;
 }
@@ -674,7 +718,7 @@ function moveItem(itemId,from,to,targetIndex){
   if(idx<0)return;
   const [item]=fromList.splice(idx,1);
   let insertAt=targetIndex;
-  if(from===to&&idx<insertAt)insertAt--;
+  // getDropIndex already excludes the dragged card: decrementing again shifts it left.
   insertAt=Math.max(0,Math.min(insertAt,toList.length));
   toList.splice(insertAt,0,item);
   persist();renderLibrary();renderBoard();
