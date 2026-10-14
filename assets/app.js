@@ -272,7 +272,7 @@ function setJsonStatus(text,mode='neutral'){
   el.classList.remove('neutral','dirty','saved');
   el.classList.add(mode);
 }
-function markDirty(){dirty=true;setJsonStatus('● 저장 안 됨 · 공유 저장 필요','dirty')}
+function markDirty(){dirty=true;setJsonStatus('● 변경됨 · 자동 저장 대기','dirty')}
 function persist(){editRevision++;markDirty();queueVoteSave()}
 function buildJsonPayload(){
   return {format:JSON_FORMAT,version:JSON_VERSION,savedAt:new Date().toISOString(),state};
@@ -368,6 +368,16 @@ async function saveJson(){
     try{
       const snapshot=await fetchSharedJsonp();
       if(!snapshot.success||!Number.isSafeInteger(snapshot.version))throw new Error(snapshot.error||'공유 정보 조회 실패');
+      if(snapshot.data&&!dirty){
+        // A user clicking Save after an initial read failure is asking to reconnect.
+        // Never write an empty local plan over an existing shared schedule.
+        state=normalizeImportedState(snapshot.data);
+        ensureState();migrateLegacyRoutes();selectPlanWithSavedItems();
+        remoteSha=snapshot.version;dirty=false;
+        renderAll();setJsonStatus('✓ 공유 일정 다시 연결됨','saved');
+        toast('기존 공유 일정을 안전하게 불러왔습니다.');
+        return;
+      }
       if(snapshot.data&&dirty&&!confirm('서버에 공유 일정이 있습니다. 현재 화면의 일정으로 덮어쓰기를 시도할까요? 먼저 JSON 백업을 권장합니다.')){
         setJsonStatus('● 기존 공유본 보존 · 백업 후 다시 시도','dirty');return;
       }
