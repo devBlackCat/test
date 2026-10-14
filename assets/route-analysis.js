@@ -212,7 +212,8 @@
           hint=document.createElement("div");
           card.parentNode.insertBefore(hint,card);
         }
-        const bothHotels=isLodging(prior.item)&&isLodging(curr.item);
+        const bothHotels=isLodging(prior.item)&&isLodging(curr.item)&&
+          (prior.item.placeId||prior.item.routeId)!==(curr.item.placeId||curr.item.routeId);
         const km=distance(prior,curr);
         const onsite=km!==null&&km<0.06;
         hint.className="movement-hint route-leg-hint"+(bothHotels?" route-leg-choice":km!==null&&km>=15?" route-leg-long":"");
@@ -270,7 +271,7 @@
         if(!known)continue;
         const note=document.createElement("div");
         note.className="route-inner-distance";
-        note.textContent="↳ 묶음 내부 "+n.pts.length+"곳 · 직선 약 "+fmt(sum)+"km";
+        note.textContent="↳ 묶음 내부 "+n.pts.length+"곳 · "+(sum<0.06?"같은 시설권역 · 이동 거의 없음":"직선 약 "+fmt(sum)+"km");
         holder.appendChild(note);
       }
     });
