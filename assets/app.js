@@ -520,7 +520,7 @@ function renderPlacesGrouped(list){
   const grouped={};list.forEach(p=>{const key=regionKey(p);(grouped[key]??=[]).push(p)});
   const byMajor={};
   Object.entries(grouped).sort((a,b)=>(AREA_META[a[0]]?.order??99)-(AREA_META[b[0]]?.order??99)).forEach(([key,items])=>{const major=areaMajor(key);(byMajor[major]??=[]).push([key,items])});
-  return MAJOR_ORDER.filter(m=>byMajor[m]?.length).map(major=>`<section class="major-region-section"><div class="major-region-head"><strong>${escapeHtml(major)}</strong><span>${byMajor[major].reduce((n,[,items])=>n+items.length,0)}곳</span></div>${byMajor[major].map(([key,items])=>`<details class="region-group" open><summary><span>${escapeHtml(AREA_META[key]?.label||key)}</span><b>${items.length}</b></summary><div class="region-group-body">${items.map(renderPlaceCard).join('')}</div></details>`).join('')}</section>`).join('');
+  return MAJOR_ORDER.filter(m=>byMajor[m]?.length).map(major=>`<section class="major-region-section"><div class="major-region-head"><strong>${escapeHtml(major)}</strong><span>${byMajor[major].reduce((n,[,items])=>n+items.length,0)}곳</span></div>${byMajor[major].map(([key,items])=>`<details class="region-group" data-region="${escapeHtml(key)}" open><summary><span>${escapeHtml(AREA_META[key]?.label||key)}</span><b>${items.length}</b></summary><div class="region-group-body">${items.map(renderPlaceCard).join('')}</div></details>`).join('')}</section>`).join('');
 }
 function defaultRouteSelection(g){return new Set((g.defaultPlaceIds?.length?g.defaultPlaceIds:g.placeIds).filter(id=>g.placeIds.includes(id)))}
 function selectedRouteIds(routeId){
@@ -559,6 +559,7 @@ function bindRouteCards(root){
 function renderLibrary(returnedIds=[]){
   const root=document.getElementById('placeLibrary');
   const scrollTop=root.scrollTop;
+  const closedRegions=new Set([...root.querySelectorAll("details.region-group:not([open])")].map(el=>el.dataset.region));
   if(libraryMode==='routes'){
     root.innerHTML=renderRoutesGrouped();bindRouteCards(root);root.scrollTop=scrollTop;return;
   }
@@ -567,11 +568,13 @@ function renderLibrary(returnedIds=[]){
   // The library is an unassigned inventory, not a permanent duplicate of the itinerary.
   root.innerHTML=renderPlacesGrouped(list)||'<div class="library-empty">모든 장소가 일정에 등록됐습니다. 일정 카드의 ×를 누르면 장소가 다시 표시됩니다.</div>';
   bindLibraryPlaceCards(root);
+  root.querySelectorAll("details.region-group").forEach(el=>{if(closedRegions.has(el.dataset.region))el.open=false;});
   root.scrollTop=scrollTop;
   const returned=returnedIds.find(id=>!assigned.has(id)&&!PLACE_LIBRARY_EXCLUDE.has(id));
   if(returned){
     const card=[...root.querySelectorAll('[data-place]')].find(el=>el.dataset.place===returned);
     if(card){
+      const group=card.closest('details.region-group');if(group)group.open=true;
       card.classList.add('returned-place');
       card.scrollIntoView({block:'nearest',behavior:'auto'});
     }
