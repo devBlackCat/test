@@ -293,11 +293,29 @@ async function loadShared({silent=false,force=false}={}){
   if(syncInProgress)return;
   if(dirty&&!force){if(!silent)toast('미저장 변경 사항이 있습니다. 공유 저장 후 새로고침하세요.');return;}
   if(force&&dirty&&!confirm('저장하지 않은 변경을 버리고 최신 공유 일정을 불러올까요?'))return;
+  const initialLoading=remoteSha===null;
+  const startingRevision=editRevision;
+  const workspace=document.getElementById('workspace');
+  const planControl=document.querySelector('.plan-control');
   syncInProgress=true;
+  if(initialLoading){
+    document.body.classList.add('trip-initial-loading');
+    if(workspace)workspace.inert=true;
+    if(planControl)planControl.inert=true;
+  }
   try{
     const result=await fetchSharedJsonp();
     if(!result.success)throw new Error(result.error||'조회 실패');
     if(!Number.isSafeInteger(result.version))throw new Error('잘못된 공유 데이터 버전');
+    if(editRevision!==startingRevision){
+      // A programmatic edit during an in-flight load must not be clobbered by a late reply.
+      // Also do not auto-save the unsynchronized local snapshot over the remote plan.
+      clearTimeout(voteSaveTimer);
+      remoteSha=null;
+      setJsonStatus('⚠ 공유 조회 중 편집 발생 · 로컬 변경 보존','dirty');
+      toast('공유 일정을 불러오는 도중 변경되어 덮어쓰기를 차단했습니다.');
+      return;
+    }
     if(result.version===remoteSha&&!force){if(!silent)setJsonStatus('✓ 최신 공유 일정','saved');return;}
     if(result.data){
       state=normalizeImportedState(result.data);
@@ -310,7 +328,14 @@ async function loadShared({silent=false,force=false}={}){
     setJsonStatus(result.data?'✓ 공유 일정 동기화됨':'✓ 공유 일정 준비됨 · 최초 저장 가능','saved');
     if(!silent)toast('공유 일정을 불러왔습니다.');
   }catch(err){console.error('Shared load:',err);setJsonStatus('공유 일정 조회 실패','dirty');if(!silent)toast('조회 실패: '+err.message);}
-  finally{syncInProgress=false;lastRemoteCheck=Date.now();}
+  finally{
+    syncInProgress=false;lastRemoteCheck=Date.now();
+    if(initialLoading){
+      document.body.classList.remove('trip-initial-loading');
+      if(workspace)workspace.inert=false;
+      if(planControl)planControl.inert=false;
+    }
+  }
 }
 async function saveJson(){
   if(syncInProgress){toast('동기화 중입니다.');return;}
