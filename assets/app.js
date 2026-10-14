@@ -240,7 +240,6 @@ function migrateLegacyRoutes(){
   }
 }
 migrateLegacyRoutes();
-let currentFileHandle=null;
 let currentFileName='';
 let dirty=false;
 let placeFilter='available';
@@ -250,9 +249,7 @@ let pendingAdd=null;
 let editingCustom=null;
 let lastRemoved=null;
 let draggedSchedule=null;
-const routeSelections=new Map();
 
-function safeParse(v){try{return v?JSON.parse(v):null}catch{return null}}
 function blankPlan(use12=false){return use12?{'12':[],'13':[],'14':[],'15':[],'16':[]}:{'13':[],'14':[],'15':[],'16':[]}}
 function ensureState(){
   state.activePlan = state.activePlan==='use12'?'use12':'start13';
@@ -289,7 +286,6 @@ function downloadJsonText(text,filename){
 const API_URL=window.TRIP_API_URL||'';
 let remoteSha=null;
 let syncInProgress=false;
-let lastRemoteCheck=0;
 let editRevision=0;
 let voteSaveTimer=null;
 let libraryDropBound=false;
@@ -355,7 +351,7 @@ async function loadShared({silent=false,force=false}={}){
     if(!silent)toast('공유 일정을 불러왔습니다.');
   }catch(err){console.error('Shared load:',err);setJsonStatus('공유 일정 조회 실패','dirty');if(!silent)toast('조회 실패: '+err.message);}
   finally{
-    syncInProgress=false;lastRemoteCheck=Date.now();
+    syncInProgress=false;
     if(initialLoading){
       document.body.classList.remove('trip-initial-loading');
       if(workspace)workspace.inert=false;
@@ -424,21 +420,12 @@ function normalizeImportedState(data){
   if(!imported||typeof imported!=='object'||!imported.plans)throw new Error('지원하지 않는 일정 JSON 형식입니다.');
   return imported;
 }
-async function openJson(){
-  try{
-    if(window.showOpenFilePicker){
-      const [handle]=await window.showOpenFilePicker({multiple:false,types:[{description:'여행 일정 JSON',accept:{'application/json':['.json']}}]});
-      if(!handle)return;const file=await handle.getFile();await loadJsonFile(file,handle);return;
-    }
-  }catch(err){if(err?.name==='AbortError')return;console.error(err)}
-  toast('JSON 가져오기 메뉴는 제거되었습니다.');
-}
 async function loadJsonFile(file,fileHandle=null){
   if(!file)return;
   try{
     const data=JSON.parse(await file.text());
     state=normalizeImportedState(data);ensureState();migrateLegacyRoutes();selectPlanWithSavedItems();
-    currentFileHandle=fileHandle;currentFileName=file.name||'trip.json';editRevision++;markDirty();
+    currentFileName=file.name||'trip.json';editRevision++;markDirty();
     renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus(`● ${currentFileName} · 공유 저장 필요`,'dirty');toast('JSON 일정을 불러왔습니다.');
   }catch(err){
     console.error(err);toast('JSON을 불러오지 못했습니다. 파일 형식을 확인하세요.');
@@ -466,16 +453,6 @@ function selectPlanWithSavedItems(){
   // 둘 다 있는 경우에는 공유 JSON에 저장된 사용자의 선택을 보존합니다.
 }
 function regionKey(p){return PLACE_AREA[p?.id]||'transfer'}
-function placeType(p){
-  if(!p)return 'all';
-  if(p.kind==='hotel'||p.tags.includes('숙박'))return 'hotel';
-  if(['airport','transport'].includes(p.category)||p.tags.includes('이동'))return 'transport';
-  if(['museum','usj','snw'].includes(p.id))return 'experience';
-  if(['pokecafe','ekiben','dotonbori'].includes(p.id))return 'food';
-  if(p.tags.some(t=>['레트로','카드','tcg','포켓몬카드','게임'].includes(String(t).toLowerCase())))return 'gaming';
-  if(['pkmkyoto','ninkyoto','ninosaka','pkmosaka','shinsaibashi','kirbystore','pokemonstand','cardstation'].includes(p.id))return 'shop';
-  return 'experience';
-}
 function sameBuilding(a,b){if(!a||!b)return false;return SAME_BUILDING.some(set=>set.has(a)&&set.has(b))}
 function areaLabel(key){return AREA_META[key]?.label||key||''}
 function areaMajor(key){return AREA_META[key]?.major||'기타'}
@@ -504,11 +481,19 @@ function renderPlaceMeta(p){
   return parts.join('');
 }
 function requirementLabel(rule){return rule.level==='required'?'필수':rule.level==='conditional'?'확인':'권장'}
-function renderRequirementInline(placeId,context='library'){
+function reservationKey(placeId,day){return state.activePlan+'|'+day+'|'+placeId}
+function renderRequirementInline(placeId,context='library',day=''){
   const rule=RESERVATION_RULES[placeId];if(!rule)return '';
-  const done=!!state.reservationDone[placeId];
+  const scoped=context==='schedule'&&activeDays().includes(day);
+  const done=scoped&&!!state.reservationDone[reservationKey(placeId,day)];
+  // Library/detail show the rule, but not a misleading global completion checkbox.
+  if(!scoped)return `<div class="inline-requirement ${rule.level}" data-requirement-row="${placeId}">
+    <span class="inline-check">!</span>
+    <span class="inline-requirement-copy"><strong>${escapeHtml(rule.title)}</strong><small>날짜별 예약 완료 여부는 해당 일정 카드에서 체크하세요. ${escapeHtml(rule.note)}</small></span>
+    <span class="inline-requirement-state">${requirementLabel(rule)}</span>
+  </div>`;
   return `<label class="inline-requirement ${rule.level} ${done?'done':''}" data-requirement-row="${placeId}">
-    <input type="checkbox" data-reservation-toggle="${placeId}" ${done?'checked':''}>
+    <input type="checkbox" data-reservation-toggle="${placeId}" data-reservation-day="${day}" ${done?'checked':''}>
     <span class="inline-check">${done?'✓':''}</span>
     <span class="inline-requirement-copy"><strong>${escapeHtml(rule.title)}</strong><small>${escapeHtml(rule.note)}</small></span>
     <span class="inline-requirement-state">${done?escapeHtml(rule.doneLabel):requirementLabel(rule)}</span>
@@ -516,14 +501,18 @@ function renderRequirementInline(placeId,context='library'){
 }
 function bindReservationToggles(root=document){
   root.querySelectorAll('[data-reservation-toggle]').forEach(inp=>inp.onchange=e=>{
-    e.stopPropagation();state.reservationDone[inp.dataset.reservationToggle]=inp.checked;persist();renderLibrary();renderBoard();
+    e.stopPropagation();
+    const day=inp.dataset.reservationDay;
+    if(!activeDays().includes(day))return;
+    state.reservationDone[reservationKey(inp.dataset.reservationToggle,day)]=inp.checked;
+    persist();renderLibrary();renderBoard();
   });
   root.querySelectorAll('.inline-requirement').forEach(row=>row.onclick=e=>e.stopPropagation());
 }
 function renderPlaceVote(placeId){
   const vote=state.placeVotes?.[placeId]||'';
   return `<div class="place-vote" data-vote-row="${escapeHtml(placeId)}" aria-label="장소 추천 여부">
-    <span class="place-vote-label">방문 의견</span>
+    <span class="place-vote-label">공용 방문 의견 · 마지막 선택이 적용됩니다</span>
     <button type="button" class="vote-btn ${vote==='up'?'selected up':''}" data-vote="up" data-vote-place="${escapeHtml(placeId)}" aria-pressed="${vote==='up'}">👍 추천</button>
     <button type="button" class="vote-btn ${vote==='down'?'selected down':''}" data-vote="down" data-vote-place="${escapeHtml(placeId)}" aria-pressed="${vote==='down'}">👎 비추천</button>
   </div>`;
@@ -563,7 +552,6 @@ function renderPlaceCard(p){
       <button class="add-mini" data-add="${p.id}" title="일정에 추가">＋</button>
     </div>
     ${renderRequirementInline(p.id)}
-    ${renderPlaceVote(p.id)}
   </article>`;
 }
 function renderPlacesGrouped(list){
@@ -586,23 +574,6 @@ function selectedRouteIds(routeId){
   const assigned=schedulePlaceIds();
   return [...defaultRouteSelection(g)].filter(id=>!assigned.has(id));
 }
-function renderRouteCard(g){
-  const members=g.placeIds.map(placeById).filter(Boolean),assigned=schedulePlaceIds();
-  const available=members.filter(p=>!assigned.has(p.id));
-  const selected=new Set(selectedRouteIds(g.id));
-  const hasRequired=available.some(p=>['required','conditional'].includes(RESERVATION_RULES[p.id]?.level));
-  return `<article class="route-library-card" draggable="true" data-route="${g.id}">
-    <div class="route-card-top"><div><div class="route-kicker">${escapeHtml(g.region)} · ${escapeHtml(g.duration)}</div><div class="route-title">${escapeHtml(g.title)}</div></div><button class="route-add-selected" data-add-route="${g.id}" title="선택한 장소를 묶음으로 추가" ${selected.size?"":"disabled"}>선택 추가</button></div>
-    <p>${escapeHtml(g.desc)}</p>
-    <div class="route-member-list">${members.map((p,i)=>`<label class="route-member-select ${assigned.has(p.id)?'already-scheduled':''}"><input type="checkbox" data-route-select="${g.id}" data-place-id="${p.id}" ${selected.has(p.id)?'checked':''} ${assigned.has(p.id)?'disabled':''}><span class="route-member-index">${i+1}</span><span class="route-member-copy"><strong>${escapeHtml(p.title)}</strong><small>${escapeHtml(p.duration)}${assigned.has(p.id)?' · 일정에 등록됨':RESERVATION_RULES[p.id]?.level==='required'?' · 예약 필수':''}</small></span><button type="button" class="route-member-info" data-route-member="${p.id}" title="장소 상세">ⓘ</button></label>`).join('')}</div>
-    ${g.optionNote?`<div class="route-option-note">${escapeHtml(g.optionNote)}</div>`:''}
-    <div class="route-footer"><span>${selected.size}/${available.length}곳 선택 · 전체 ${members.length}곳</span>${hasRequired?'<span class="route-reserve-alert">예약/조건 있음</span>':''}</div>
-  </article>`;
-}
-function renderRoutesGrouped(){
-  const byMajor={};ROUTE_GROUPS.forEach(g=>(byMajor[g.major]??=[]).push(g));
-  return MAJOR_ORDER.filter(m=>byMajor[m]?.length).map(major=>`<section class="major-route-section"><div class="major-region-head"><strong>${escapeHtml(major)}</strong><span>${byMajor[major].length}개 동선</span></div><div class="major-route-body">${byMajor[major].map(renderRouteCard).join('')}</div></section>`).join('');
-}
 function bindLibraryPlaceCards(root){
   root.querySelectorAll('.place-card').forEach(card=>{card.onclick=e=>{if(e.target.closest('[data-add],.inline-requirement,.place-vote'))return;selectPlace(card.dataset.place)};card.addEventListener('dragstart',e=>{if(e.target.closest('button,input,label')){e.preventDefault();return}card.classList.add('dragging');e.dataTransfer.setData('text/place',card.dataset.place);e.dataTransfer.effectAllowed='copy'});card.addEventListener('dragend',()=>card.classList.remove('dragging'))});
   root.querySelectorAll('[data-add]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();openAddDialog({type:'place',id:btn.dataset.add})});
@@ -613,12 +584,6 @@ function bindLibraryPlaceCards(root){
     openAddDialog({type:'route',id,memberIds:members});
   });
   bindReservationToggles(root);bindPlaceVotes(root);
-}
-function bindRouteCards(root){
-  root.querySelectorAll('.route-library-card').forEach(card=>{card.addEventListener('dragstart',e=>{if(e.target.closest('button,input,label')){e.preventDefault();return}const routeId=card.dataset.route;if(!selectedRouteIds(routeId).length){e.preventDefault();toast('동선에서 한 곳 이상 선택하세요.');return}card.classList.add('dragging');e.dataTransfer.setData('text/route',routeId);e.dataTransfer.effectAllowed='copy'});card.addEventListener('dragend',()=>card.classList.remove('dragging'))});
-  root.querySelectorAll('[data-route-select]').forEach(inp=>inp.onchange=e=>{e.stopPropagation();const routeId=inp.dataset.routeSelect,placeId=inp.dataset.placeId,g=routeById(routeId);if(!g||schedulePlaceIds().has(placeId))return;if(!routeSelections.has(routeId))routeSelections.set(routeId,defaultRouteSelection(g));const set=routeSelections.get(routeId);inp.checked?set.add(placeId):set.delete(placeId);renderLibrary()});
-  root.querySelectorAll('[data-add-route]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();const ids=selectedRouteIds(btn.dataset.addRoute);if(!ids.length){toast('동선에서 한 곳 이상 선택하세요.');return}openAddDialog({type:'route',id:btn.dataset.addRoute,memberIds:ids})});
-  root.querySelectorAll('[data-route-member]').forEach(btn=>btn.onclick=e=>{e.preventDefault();e.stopPropagation();selectPlace(btn.dataset.routeMember)});
 }
 function renderLibrary(returnedIds=[]){
   const root=document.getElementById('placeLibrary'),scrollTop=root.scrollTop;
@@ -681,7 +646,7 @@ function renderScheduleCard(item,day,warnings=[]){
     <div class="card-head"><span class="drag-handle">⠿</span><div class="card-title">${escapeHtml(title)}</div><div class="card-actions">${p?`<button class="card-icon detail-btn" data-place="${p.id}" title="상세">ⓘ</button>`:`<button class="card-icon edit-custom-btn" data-edit-custom="${item.uid}" data-day="${day}" title="제목·메모 수정" aria-label="일정 수정">✎</button>`}<button class="card-icon remove-btn" data-remove="${item.uid}" data-day="${day}" title="삭제" aria-label="일정에서 삭제">×</button></div></div>
     ${renderWarnings(warnings)}
     <div class="time-row"><label class="time-field"><span>시작</span><input type="time" value="${item.start||''}" data-time="start" data-item="${item.uid}" data-day="${day}"></label><label class="time-field"><span>종료</span><input type="time" value="${item.end||''}" data-time="end" data-item="${item.uid}" data-day="${day}"></label></div>
-    <div class="card-note">${escapeHtml(note)}</div>${p&&PLACE_OPTION_NOTES[p.id]?`<div class="schedule-option-note">🎮 ${escapeHtml(PLACE_OPTION_NOTES[p.id])}</div>`:''}${p?renderRequirementInline(p.id,'schedule'):''}${p?renderPlaceVote(p.id):''}</article>`;
+    <div class="card-note">${escapeHtml(note)}</div>${p&&PLACE_OPTION_NOTES[p.id]?`<div class="schedule-option-note">🎮 ${escapeHtml(PLACE_OPTION_NOTES[p.id])}</div>`:''}${p?renderRequirementInline(p.id,'schedule',day):''}</article>`;
 }
 function renderRouteScheduleCard(item,day,warnings=[]){
   const g=routeById(item.routeId);if(!g)return '';const memberIds=item.memberIds?.length?item.memberIds:g.placeIds;const members=memberIds.map(placeById).filter(Boolean);const shown=item.expanded?members:members.slice(0,2);const reqs=members.filter(p=>RESERVATION_RULES[p.id]);
@@ -690,7 +655,7 @@ function renderRouteScheduleCard(item,day,warnings=[]){
     ${renderWarnings(warnings)}
     <div class="time-row"><label class="time-field"><span>시작</span><input type="time" value="${item.start||''}" data-time="start" data-item="${item.uid}" data-day="${day}"></label><label class="time-field"><span>종료</span><input type="time" value="${item.end||''}" data-time="end" data-item="${item.uid}" data-day="${day}"></label></div>
     <div class="route-schedule-members">${shown.map((p,i)=>`<button type="button" data-place-inline="${p.id}"><span>${i+1}</span>${escapeHtml(p.title)}${RESERVATION_RULES[p.id]?.level==='required'?'<b>예약</b>':''}</button>`).join('')}${!item.expanded&&members.length>2?`<small>+ ${members.length-2}곳 더</small>`:''}</div>
-    ${g.optionNote?`<div class="schedule-option-note">🎮 ${escapeHtml(g.optionNote)}</div>`:''}<div class="card-note">${escapeHtml(g.region)} · ${escapeHtml(g.duration)}</div>${reqs.map(p=>renderRequirementInline(p.id,'schedule')).join('')}</article>`;
+    ${g.optionNote?`<div class="schedule-option-note">🎮 ${escapeHtml(g.optionNote)}</div>`:''}<div class="card-note">${escapeHtml(g.region)} · ${escapeHtml(g.duration)}</div>${reqs.map(p=>renderRequirementInline(p.id,'schedule',day)).join('')}</article>`;
 }
 function getDropIndex(zone,clientY){const cards=[...zone.querySelectorAll('.schedule-card:not(.dragging)')];for(let i=0;i<cards.length;i++){const rect=cards[i].getBoundingClientRect();if(clientY<rect.top+rect.height/2)return i}return cards.length}
 function bindScheduleDrag(){
@@ -824,20 +789,7 @@ function addCustom(){
   return true;
 }
 
-const RECOMMENDED_SCHEDULE = {
-  '12':[{placeId:'kix',start:'23:20',end:'23:50'},{placeId:'firstcabin',start:'23:55',end:''}],
-  '13':[{placeId:'firstcabin',start:'00:00',end:'07:00'},{placeId:'haruka',start:'07:30',end:'08:25'},{routeId:'route-shinosaka',memberIds:['shinosaka','ekiben','pokemonstand'],start:'08:25',end:'09:20',expanded:false},{placeId:'kyotohotel',start:'10:15',end:'10:30'},{routeId:'route-kyoto-a',memberIds:['pkmkyoto','ninkyoto'],start:'12:00',end:'15:30',expanded:false},{title:'교토 자유관광 · 식사',memo:'니시키시장·가와라마치·기온 등에서 자유롭게 조정',start:'15:30',end:'21:00'}],
-  '14':[{title:'교토 숙소 체크아웃 · 이동',memo:'짐을 가지고 Nintendo Museum 방향으로 이동',start:'08:30',end:'09:40'},{routeId:'route-kyoto-c',memberIds:['museum'],start:'10:00',end:'14:00',expanded:false},{title:'오구라 → 오사카/우메다 이동',memo:'Museum 종료 후 오사카 방향으로 이동',start:'14:15',end:'15:45'},{placeId:'osakahotel',start:'16:00',end:'16:30'},{routeId:'route-osaka-a',memberIds:['ninosaka','pkmosaka','cardstation'],start:'17:00',end:'19:30',expanded:false},{title:'우메다 저녁 · 자유시간',memo:'숙소 복귀 포함',start:'19:30',end:'22:00'}],
-  '15':[{routeId:'route-osaka-d',memberIds:['usj','snw'],start:'08:00',end:'20:00',expanded:false}],
-  '16':[{routeId:'route-osaka-b',memberIds:['shinsaibashi','pokecafe','kirbystore','dotonbori'],start:'10:00',end:'14:00',expanded:false},{placeId:'kixreturn',start:'14:30',end:'16:00'}]
-};
-function cloneRecommendedItem(item){return {...item,uid:uid()}}
-function applyRecommendedSchedule(hotelId='firstcabin'){
-  const target=state.plans.use12,hasAny=Object.values(target).some(items=>items.length);if(hasAny&&!confirm('12일 밤 출발 일정을 비우고 추천 일정을 불러올까요?'))return;state.activePlan='use12';state.plans.use12=blankPlan(true);
-  Object.entries(RECOMMENDED_SCHEDULE).forEach(([day,items])=>{state.plans.use12[day]=items.map(item=>{const cloned=cloneRecommendedItem(item);if(cloned.placeId==='firstcabin')cloned.placeId=hotelId;return cloned})});persist();renderBoard();renderLibrary();toast(hotelId==='nikkokix'?'Hotel Nikko KIX 숙박 추천안을 적용했습니다.':'First Cabin KIX 숙박 추천안을 적용했습니다.')
-}
 function setStartDay(day){state.activePlan=day==='12'?'use12':'start13';persist();renderLibrary();renderBoard();toast(day==='12'?'A · 12일 밤 출발 일정':'B · 13일 출발 일정')}
-function resetAll(){if(!confirm('현재 보고 있는 일정만 모두 비울까요?'))return;state.plans[state.activePlan]=blankPlan(state.activePlan==='use12');persist();renderBoard();renderLibrary();toast('현재 일정을 비웠습니다.')}
 function undoLastRemoval(){
   if(!lastRemoved||lastRemoved.plan!==state.activePlan){toast('해당 일정안에서만 되돌릴 수 있습니다.');return;}
   const {day,index,item}=lastRemoved;lastRemoved=null;
