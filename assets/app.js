@@ -247,6 +247,8 @@ let placeFilter='available';
 let placeSearch='';
 let selectedPlace=null;
 let pendingAdd=null;
+let editingCustom=null;
+let lastRemoved=null;
 let draggedSchedule=null;
 const routeSelections=new Map();
 
@@ -436,7 +438,7 @@ async function loadJsonFile(file,fileHandle=null){
   try{
     const data=JSON.parse(await file.text());
     state=normalizeImportedState(data);ensureState();migrateLegacyRoutes();selectPlanWithSavedItems();
-    currentFileHandle=fileHandle;currentFileName=file.name||'trip.json';markDirty();
+    currentFileHandle=fileHandle;currentFileName=file.name||'trip.json';editRevision++;markDirty();
     renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus(`● ${currentFileName} · 공유 저장 필요`,'dirty');toast('JSON 일정을 불러왔습니다.');
   }catch(err){
     console.error(err);toast('JSON을 불러오지 못했습니다. 파일 형식을 확인하세요.');
@@ -676,7 +678,7 @@ function renderScheduleCard(item,day,warnings=[]){
   if(item.routeId)return renderRouteScheduleCard(item,day,warnings);
   const p=item.placeId?placeById(item.placeId):null;const title=p?.title||item.title||'일정';const kind=p?.kind||'custom';const note=p?.duration||item.memo||'직접 추가';
   return `<article class="schedule-card ${kind}" draggable="true" data-item="${item.uid}" data-day="${day}">
-    <div class="card-head"><span class="drag-handle">⠿</span><div class="card-title">${escapeHtml(title)}</div><div class="card-actions">${p?`<button class="card-icon detail-btn" data-place="${p.id}" title="상세">ⓘ</button>`:''}<button class="card-icon remove-btn" data-remove="${item.uid}" data-day="${day}" title="삭제">×</button></div></div>
+    <div class="card-head"><span class="drag-handle">⠿</span><div class="card-title">${escapeHtml(title)}</div><div class="card-actions">${p?`<button class="card-icon detail-btn" data-place="${p.id}" title="상세">ⓘ</button>`:`<button class="card-icon edit-custom-btn" data-edit-custom="${item.uid}" data-day="${day}" title="제목·메모 수정" aria-label="일정 수정">✎</button>`}<button class="card-icon remove-btn" data-remove="${item.uid}" data-day="${day}" title="삭제" aria-label="일정에서 삭제">×</button></div></div>
     ${renderWarnings(warnings)}
     <div class="time-row"><label class="time-field"><span>시작</span><input type="time" value="${item.start||''}" data-time="start" data-item="${item.uid}" data-day="${day}"></label><label class="time-field"><span>종료</span><input type="time" value="${item.end||''}" data-time="end" data-item="${item.uid}" data-day="${day}"></label></div>
     <div class="card-note">${escapeHtml(note)}</div>${p&&PLACE_OPTION_NOTES[p.id]?`<div class="schedule-option-note">🎮 ${escapeHtml(PLACE_OPTION_NOTES[p.id])}</div>`:''}${p?renderRequirementInline(p.id,'schedule'):''}${p?renderPlaceVote(p.id):''}</article>`;
@@ -696,7 +698,8 @@ function bindScheduleDrag(){
   document.querySelectorAll('.drop-zone').forEach(zone=>{zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');e.dataTransfer.dropEffect=(e.dataTransfer.types.includes('text/place')||e.dataTransfer.types.includes('text/route'))?'copy':'move'});zone.addEventListener('dragleave',e=>{if(!zone.contains(e.relatedTarget))zone.classList.remove('dragover')});zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');const day=zone.dataset.day,targetIndex=getDropIndex(zone,e.clientY),placeId=e.dataTransfer.getData('text/place');if(placeId){addPlaceToDay(placeId,day,targetIndex);return}const routeId=e.dataTransfer.getData('text/route');if(routeId){const ids=selectedRouteIds(routeId);if(ids.length)addRouteToDay(routeId,day,targetIndex,ids);return}if(draggedSchedule)moveItem(draggedSchedule.uid,draggedSchedule.from,day,targetIndex)})});
   const library=document.getElementById('libraryPanel');
   if(!libraryDropBound){libraryDropBound=true;library.addEventListener('dragover',e=>{if(!draggedSchedule)return;e.preventDefault();library.classList.add('library-drop-active');e.dataTransfer.dropEffect='move'});library.addEventListener('dragleave',e=>{if(!library.contains(e.relatedTarget))library.classList.remove('library-drop-active')});library.addEventListener('drop',e=>{if(!draggedSchedule)return;e.preventDefault();library.classList.remove('library-drop-active');removeItem(draggedSchedule.uid,draggedSchedule.from);draggedSchedule=null;toast('일정에서 뺐습니다.')});}
-  document.querySelectorAll('.remove-btn').forEach(b=>b.onclick=()=>removeItem(b.dataset.item,b.dataset.day));
+  document.querySelectorAll('.remove-btn').forEach(b=>b.onclick=()=>removeItem(b.dataset.remove,b.dataset.day));
+  document.querySelectorAll('[data-edit-custom]').forEach(b=>b.onclick=()=>openEditCustom(b.dataset.editCustom,b.dataset.day));
   document.querySelectorAll('.detail-btn').forEach(b=>b.onclick=()=>selectPlace(b.dataset.place));
   document.querySelectorAll('[data-place-inline]').forEach(b=>b.onclick=()=>selectPlace(b.dataset.placeInline));
   document.querySelectorAll('[data-time]').forEach(inp=>inp.onchange=()=>updateTime(inp.dataset.item,inp.dataset.day,inp.dataset.time,inp.value));
@@ -729,10 +732,11 @@ function removeItem(itemId,day){
   const placeIds=itemPlaceIds(removed);
   const remaining=schedulePlaceIds();
   const restored=placeIds.filter(id=>!remaining.has(id));
+  lastRemoved={plan:state.activePlan,day,index,item:removed};
   persist();
   if(restored.length&&placeFilter==='assigned'){placeFilter='available';renderLibraryTabs();}
   renderLibrary(restored);renderBoard();
-  toast(restored.length?'장소 목록으로 돌아왔습니다.':placeIds.length?'다른 일정에서 사용 중인 장소는 목록에 남지 않습니다.':'커스텀 일정을 삭제했습니다.');
+  toast(restored.length?'장소 목록으로 돌아왔습니다.':placeIds.length?'다른 일정에서 사용 중인 장소는 목록에 남지 않습니다.':'커스텀 일정을 삭제했습니다.',true);
 }
 function moveItem(itemId,from,to,targetIndex){
   const fromList=currentSchedule()[from],toList=currentSchedule()[to];
@@ -783,8 +787,42 @@ function openAddDialog(target){
   document.querySelectorAll('.date-choice').forEach(b=>b.onclick=()=>{if(pendingAdd.type==='route')addRouteToDay(pendingAdd.id,b.dataset.day,null,pendingAdd.memberIds);else addPlaceToDay(pendingAdd.id,b.dataset.day);document.getElementById('addDialog').close()});document.getElementById('addDialog').showModal();
 }
 function syncCustomDayOptions(){document.getElementById('customDay').innerHTML=activeDays().map(d=>`<option value="${d}">${DAY_META[d].date} ${DAY_META[d].week}</option>`).join('')}
-function openCustomForDay(day){syncCustomDayOptions();const sel=document.getElementById('customDay');if(activeDays().includes(day))sel.value=day;document.getElementById('customDialog').showModal()}
-function addCustom(){const title=document.getElementById('customTitle').value.trim();if(!title)return;const memo=document.getElementById('customMemo').value.trim(),day=document.getElementById('customDay').value;currentSchedule()[day].push({uid:uid(),title,memo,start:'',end:''});document.getElementById('customTitle').value='';document.getElementById('customMemo').value='';persist();renderBoard();toast('직접 일정을 추가했습니다.')}
+function openCustomForDay(day){
+  editingCustom=null;
+  document.getElementById('customDialogTitle').textContent='커스텀 일정 추가';
+  document.getElementById('customSubmit').textContent='추가';
+  document.getElementById('customTitle').value='';document.getElementById('customMemo').value='';
+  syncCustomDayOptions();const sel=document.getElementById('customDay');
+  if(activeDays().includes(day))sel.value=day;
+  document.getElementById('customDialog').showModal();
+}
+function openEditCustom(itemId,day){
+  const item=currentSchedule()[day]?.find(x=>x.uid===itemId);
+  if(!item||item.placeId||item.routeId)return;
+  editingCustom={uid:itemId,day:day};
+  document.getElementById('customDialogTitle').textContent='커스텀 일정 수정';
+  document.getElementById('customSubmit').textContent='변경 저장';
+  syncCustomDayOptions();document.getElementById('customDay').value=day;
+  document.getElementById('customTitle').value=item.title||'';
+  document.getElementById('customMemo').value=item.memo||'';
+  document.getElementById('customDialog').showModal();
+}
+function addCustom(){
+  const title=document.getElementById('customTitle').value.trim();
+  if(!title){toast('일정 이름을 입력하세요.');return false;}
+  const memo=document.getElementById('customMemo').value.trim(),day=document.getElementById('customDay').value;
+  if(!activeDays().includes(day))return false;
+  const wasEdit=!!editingCustom;
+  if(editingCustom){
+    const from=currentSchedule()[editingCustom.day],item=from?.find(x=>x.uid===editingCustom.uid);
+    if(!item||item.placeId||item.routeId)return false;
+    item.title=title;item.memo=memo;
+    if(day!==editingCustom.day){from.splice(from.indexOf(item),1);currentSchedule()[day].push(item);}
+  }else currentSchedule()[day].push({uid:uid(),title,memo,start:'',end:''});
+  editingCustom=null;
+  persist();renderBoard();toast(wasEdit?'커스텀 일정을 수정했습니다.':'직접 일정을 추가했습니다.');
+  return true;
+}
 
 const RECOMMENDED_SCHEDULE = {
   '12':[{placeId:'kix',start:'23:20',end:'23:50'},{placeId:'firstcabin',start:'23:55',end:''}],
@@ -800,12 +838,27 @@ function applyRecommendedSchedule(hotelId='firstcabin'){
 }
 function setStartDay(day){state.activePlan=day==='12'?'use12':'start13';persist();renderLibrary();renderBoard();toast(day==='12'?'A · 12일 밤 출발 일정':'B · 13일 출발 일정')}
 function resetAll(){if(!confirm('현재 보고 있는 일정만 모두 비울까요?'))return;state.plans[state.activePlan]=blankPlan(state.activePlan==='use12');persist();renderBoard();renderLibrary();toast('현재 일정을 비웠습니다.')}
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),1800)}
+function undoLastRemoval(){
+  if(!lastRemoved||lastRemoved.plan!==state.activePlan){toast('해당 일정안에서만 되돌릴 수 있습니다.');return;}
+  const {day,index,item}=lastRemoved;lastRemoved=null;
+  const list=currentSchedule()[day];if(!list)return;
+  if(list.some(x=>x.uid===item.uid))return;
+  list.splice(Math.min(index,list.length),0,item);
+  persist();renderLibrary();renderBoard();toast('일정 삭제를 되돌렸습니다.');
+}
+function toast(msg,offerUndo=false){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  if(offerUndo){
+    const btn=document.createElement('button');btn.type='button';btn.className='undo-toast-btn';btn.textContent='되돌리기';
+    btn.onclick=undoLastRemoval;t.appendChild(btn);
+  }
+  clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),offerUndo?8000:2400);
+}
 
 // UI bindings
 document.querySelectorAll('.start-btn').forEach(b=>b.onclick=()=>setStartDay(b.dataset.start));
-document.getElementById('customForm').addEventListener('submit',e=>{e.preventDefault();if(e.submitter?.id!=='customSubmit')return;addCustom();document.getElementById('customDialog').close()});
-document.querySelectorAll('#customDialog [data-custom-cancel]').forEach(btn=>btn.addEventListener('click',()=>document.getElementById('customDialog').close()));
+document.getElementById('customForm').addEventListener('submit',e=>{e.preventDefault();if(e.submitter?.id!=='customSubmit')return;if(addCustom())document.getElementById('customDialog').close()});
+document.querySelectorAll('#customDialog [data-custom-cancel]').forEach(btn=>btn.addEventListener('click',()=>{editingCustom=null;document.getElementById('customDialog').close()}));
 document.getElementById('detailAddBtn').onclick=()=>{if(selectedPlace)openAddDialog({type:'place',id:selectedPlace.id})};
 document.getElementById('detailCloseBtn').onclick=()=>document.getElementById('detailDialog').close();
 document.getElementById('detailDialog').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
@@ -814,6 +867,15 @@ document.querySelectorAll('[data-place-filter]').forEach(btn=>btn.onclick=()=>{
 });
 document.getElementById('placeSearch').addEventListener('input',e=>{placeSearch=e.target.value;renderLibrary()});
 document.getElementById('jsonSaveBtn').onclick=saveJson;
+document.getElementById('jsonBackupBtn').onclick=()=>{exportJsonBackup();document.querySelector('.data-menu').open=false;};
+document.getElementById('jsonImportBtn').onclick=()=>document.getElementById('jsonImportFile').click();
+document.getElementById('jsonImportFile').addEventListener('change',async e=>{
+  const file=e.target.files?.[0];e.target.value='';
+  document.querySelector('.data-menu').open=false;
+  if(!file)return;
+  if(dirty&&!confirm('현재 저장되지 않은 편집 내용이 있습니다. 먼저 JSON 백업을 하셨나요? 이 파일로 바꾸시겠습니까?'))return;
+  await loadJsonFile(file);
+});
 window.addEventListener('beforeunload',e=>{if(!dirty)return;e.preventDefault();e.returnValue=''});
 window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveJson()}});
 
