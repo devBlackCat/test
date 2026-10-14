@@ -1,7 +1,4 @@
 /* Route analysis: isolated styles, no existing planner selector overrides. */
-.route-analyze-btn{display:block;width:100%;margin-top:9px;padding:8px 9px;border:1px solid #dce6f4;border-radius:9px;text-align:left;background:#f1f6ff;color:#305e91;font-size:10px;font-weight:800;line-height:1.4;cursor:pointer;white-space:normal}
-.route-analyze-btn:hover,.route-analyze-btn:focus-visible{background:#e6f1ff;outline:2px solid #aecbfa;outline-offset:1px}
-.route-analyze-btn.route-analyze-warning{background:#fff7ed;border-color:#f6d4a9;color:#a35e12}
 .route-analysis-dialog{border:0;padding:0;border-radius:17px;width:min(830px,96vw);max-height:91vh;box-shadow:0 24px 90px rgba(15,23,42,.32);background:#fff;color:#29354a}
 .route-analysis-dialog::backdrop{background:rgba(17,24,39,.55);backdrop-filter:blur(2px)}
 .route-analysis-shell{padding:22px 25px 23px;max-height:90vh;overflow:auto}
@@ -39,5 +36,18 @@
 @media(max-width:650px){.route-analysis-shell{padding:16px}.route-analysis-top h2{font-size:20px}.route-analysis-stats{gap:5px}.route-analysis-stats>div{padding:9px 7px}.route-analysis-stats small{font-size:9px}.route-analysis-stats b{font-size:16px}.route-analysis-map svg{height:180px}.route-analysis-actions button{flex:1}}
 
 /* Lightweight distance label on existing movement hints. */
-.route-segment-km{font-size:9px;font-weight:900;color:#385574}
-.route-segment-link{display:inline-block;margin-left:6px;color:#235da9;text-decoration:underline;text-underline-offset:2px;font-size:9px;font-weight:800}
+
+/* In-between only: compact readable transfer hints and contextual suggestions. */
+.movement-hint.route-leg-hint{display:grid;gap:3px;padding:7px 8px;margin:3px 4px 7px;border:1px dashed #d7e4f3;border-radius:9px;background:#f5f8fd;text-align:left;font-size:10px;line-height:1.45;font-weight:600;color:#3c5879;overflow-wrap:anywhere}
+.route-leg-head{display:flex;gap:5px;align-items:flex-start}
+.route-leg-arrow{color:#5780af;flex:none}
+.route-leg-main{font-weight:800;color:#31577f}
+.movement-hint.route-leg-long{background:#fff8ef;border-color:#f1d2a0}
+.route-leg-long .route-leg-main{color:#9b6224}
+.movement-hint.route-leg-choice{background:#fff8ec;border-color:#e9d5b1}
+.route-leg-detail{font-size:9px;color:#956a39;padding-left:13px;font-weight:600}
+.route-leg-actions{display:flex;flex-wrap:wrap;gap:6px;padding-left:13px;align-items:center}
+.route-segment-link{font-size:9px;font-weight:800;color:#245e9e;text-decoration:underline;text-underline-offset:2px}
+.route-suggestion-btn{border:1px solid #e6c98c;border-radius:7px;background:#fff3db;color:#91601c;font-weight:800;font-size:9px;padding:3px 6px;cursor:pointer}
+.route-suggestion-btn:hover{background:#ffe8ba}
+.route-inner-distance{margin:6px 0 0;padding:6px 7px;border-radius:8px;background:#edf5ff;color:#365e8d;font-size:9px;font-weight:800;line-height:1.5}
