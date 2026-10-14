@@ -67,8 +67,9 @@
   function makeNode(item,index) {
     const pts=itemPoints(item), p=item.placeId ? placeById(item.placeId):null;
     const route=item.routeId ? routeById(item.routeId):null;
+    const selectedIds=route ? ((Array.isArray(item.memberIds)&&item.memberIds.length)?item.memberIds:route.placeIds) : [];
     const hasFixedPlace=!!(p&&fixedTypes.has(p.category)) ||
-      !!(p&&p.kind==="hotel") || !!(route&&route.placeIds.some(id=>{
+      !!(p&&p.kind==="hotel") || !!(route&&selectedIds.some(id=>{
         const r=placeById(id);return r&&(r.kind==="hotel"||fixedTypes.has(r.category));
       }));
     const timed=!!(item.start||item.end);
