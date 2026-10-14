@@ -73,8 +73,10 @@
         const r=placeById(id);return r&&(r.kind==="hotel"||fixedTypes.has(r.category));
       }));
     const timed=!!(item.start||item.end);
-    const locked=timed||hasFixedPlace||!pts.length;
-    return {item:item,index:index,label:itemLabel(item),pts:pts,first:pts[0]||null,last:pts[pts.length-1]||null,locked:locked,timed:timed,reason:timed?"입력된 시간 고정":hasFixedPlace?"숙박·교통 고정":!pts.length?"위치 정보 없음":""};
+    const reservationLocked=!!(p&&RESERVATION_RULES[p.id]?.level==="required")||
+      !!(route&&selectedIds.some(id=>RESERVATION_RULES[id]?.level==="required"));
+    const locked=timed||hasFixedPlace||reservationLocked||!pts.length;
+    return {item:item,index:index,label:itemLabel(item),pts:pts,first:pts[0]||null,last:pts[pts.length-1]||null,locked:locked,timed:timed,reason:timed?"입력된 시간 고정":hasFixedPlace?"숙박·교통 고정":reservationLocked?"사전 예약 우선 고정":!pts.length?"위치 정보 없음":""};
   }
   function distance(a,b) {
     return a&&b?haversine(a.last,b.first):null;
@@ -89,35 +91,34 @@
     const end=distance(nodes[nodes.length-1],right);if(end!==null)result+=end;
     return result;
   }
+  // Fast best-effort route ordering, avoiding factorial-time permutation search.
   function bestReorder(nodes,left,right) {
     if(nodes.length<2)return nodes.slice();
-    let best=nodes.slice(), bestCost=sequenceCost(best,left,right);
-    if(nodes.length<=8) {
-      const used=new Set(),path=[];
-      function examine(){
-        if(path.length===nodes.length){
-          const cost=sequenceCost(path,left,right);
-          if(cost<bestCost-0.000001){bestCost=cost;best=path.slice();}
-          return;
-        }
-        for(let i=0;i<nodes.length;i++){
-          if(used.has(i))continue;
-          used.add(i);path.push(nodes[i]);examine();path.pop();used.delete(i);
-        }
+    let best=nodes.slice(),bestCost=sequenceCost(best,left,right);
+    const starts=[nodes.slice()];
+    for(let seed=0;seed<Math.min(3,nodes.length);seed++){
+      const route=[nodes[seed]],unvisited=nodes.filter(x=>x!==nodes[seed]);
+      while(unvisited.length){
+        const last=route[route.length-1];
+        unvisited.sort((a,b)=>(distance(last,a)??Infinity)-(distance(last,b)??Infinity));
+        route.push(unvisited.shift());
       }
-      examine();
-    }else{
-      let improved=true,round=0;
-      while(improved&&round++<8){
-        improved=false;
-        for(let i=0;i<best.length;i++){
-          for(let j=i+1;j<best.length;j++){
-            const test=best.slice(0,i).concat(best.slice(i,j+1).reverse(),best.slice(j+1));
-            const cost=sequenceCost(test,left,right);
-            if(cost<bestCost-0.000001){best=test;bestCost=cost;improved=true;}
+      starts.push(route);
+    }
+    for(let candidate of starts){
+      let cost=sequenceCost(candidate,left,right);
+      for(let round=0;round<5;round++){
+        let improved=false;
+        for(let i=0;i<candidate.length;i++){
+          for(let j=i+1;j<candidate.length;j++){
+            const test=candidate.slice(0,i).concat(candidate.slice(i,j+1).reverse(),candidate.slice(j+1));
+            const next=sequenceCost(test,left,right);
+            if(next<cost-0.00001){candidate=test;cost=next;improved=true;}
           }
         }
+        if(!improved)break;
       }
+      if(cost<bestCost-0.00001){best=candidate;bestCost=cost;}
     }
     return best;
   }
@@ -138,8 +139,11 @@
     }
     return {km:total,connections:verified,missing:unmeasured,legs:legs,points:expandedPoints(nodes).length};
   }
+  const analysisCache=new Map();
   function analysis(day){
     const items=(state.plans[state.activePlan]||{})[day]||[];
+    const key=state.activePlan+':'+day+':'+JSON.stringify(items);
+    if(analysisCache.has(key))return analysisCache.get(key);
     const nodes=items.map(makeNode),candidate=nodes.slice();
     const ambiguousLodging=new Set(nodes.filter(n=>isLodging(n.item)).map(n=>n.item.placeId||n.item.routeId)).size>1;
     let segments=0;
@@ -155,12 +159,15 @@
     }
     const current=summarize(nodes),better=summarize(candidate);
     const gain=Math.max(0,current.km-better.km);
-    return {day:day,nodes:nodes,candidate:candidate,current:current,better:better,gain:gain,
+    const value={day:day,nodes:nodes,candidate:candidate,current:current,better:better,gain:gain,
       percent:current.km>0?gain/current.km*100:0,segments:segments,
       ambiguousLodging:ambiguousLodging,
       excluded:nodes.filter(n=>!n.pts.length).length,
       constrained:nodes.filter(n=>n.locked).length,
       reordered:candidate.some((n,i)=>n!==nodes[i])};
+    if(analysisCache.size>25)analysisCache.clear();
+    analysisCache.set(key,value);
+    return value;
   }
   const fmt = n => Number(n).toFixed(1);
   function mapLink(a,b){
