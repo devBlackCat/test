@@ -17,7 +17,9 @@ const places = [
   {id:'pkmkyoto',title:'Pokémon Center KYOTO',category:'kyoto',kind:'main',duration:'40~70분',tags:['포켓몬','교토'],desc:'교토풍 매장 디자인과 호우오우·루기아 연출이 특징인 공식 포켓몬센터.',image:'https://pbs.twimg.com/media/D1vdlwMW0AAx7V0.png',facts:{위치:'SUINA室町 2F','성격':'공식 포켓몬센터'},reservation:'통상 예약 없음. 혼잡/정리권 여부는 여행 직전 확인.',source:'https://shop.pokemon.co.jp/en/shop/pokemoncenter-kyoto/'},
   {id:'ninkyoto',title:'Nintendo KYOTO',category:'kyoto',kind:'main',duration:'60~90분',tags:['닌텐도','교토'],desc:'교토의 Nintendo 공식 직영점. 교토 한정 상품과 포토스폿이 있어 Nintendo OSAKA와 별개로 볼 이유가 있다.',image:'https://cdn-ak.f.st-hatena.com/images/fotolife/S/Sig-Maru/20250912/20250912191154.jpg',facts:{위치:'교토 다카시마야 S.C. T8 7F','성격':'Nintendo 공식 직영점'},reservation:'통상 예약 없음. 혼잡 시 운영 공지 확인.',source:'https://www.nintendo.com/jp/officialstore/index.html'},
   {id:'museum',title:'Nintendo Museum',category:'uji',kind:'required',duration:'3~5시간',tags:['닌텐도','우지','필수','예약'],desc:'이번 여행의 필수 장소. 옛 Nintendo 공장 부지에 조성된 박물관으로 닌텐도 역사와 인터랙티브 체험을 볼 수 있다.',image:'https://upload.wikimedia.org/wikipedia/commons/c/c0/Nintendo_Museum_Entrance.jpg',facts:{위치:'교토부 우지시 오구라',추천체류:'3~5시간',접근:'긴테쓰 오구라역 / JR 오구라역'},reservation:'필수: 날짜·시간 지정 티켓을 사전에 확보해야 함.',source:'https://museum.nintendo.com/en/index.html'},
+  {id:'suntorykyoto',title:'산토리 천연수 맥주공장 · 교토',category:'kyoto',kind:'option',duration:'견학 약 90분',tags:['교토','나가오카쿄','맥주','공장견학','예약','시음','옵션'],desc:'교토 나가오카쿄의 산토리 맥주공장. 더 프리미엄 몰츠 제조 과정을 견학하고 시음 체험을 할 수 있다. 교토 도심과 떨어져 있어 이동시간을 따로 확보해야 한다.',image:FALLBACK,facts:{위치:'교토부 나가오카쿄시',소요:'투어 약 90분',요금:'일반 투어 성인 ¥1,000 안내 (2026-10 기준)'},reservation:'투어는 사전 예약 필요. 2027년 5월 일정은 예약 개시 후 확인.',source:'https://www.suntory.co.jp/factory/kyoto/'},
   {id:'osakahotel',title:'오사카 숙소',category:'osaka',kind:'hotel',duration:'숙박',tags:['오사카','숙박'],desc:'오사카 체류용 숙소 카드. 우메다·오사카역권을 중심으로 두면 Nintendo OSAKA와 이동이 편하다.',image:FALLBACK,facts:{추천권역:'오사카역 / 우메다','용도':'오사카 체류 거점'},reservation:'호텔 사전예약 필요.',source:''},
+  {id:'asahisuita',title:'아사히 맥주 뮤지엄 · 스이타공장',category:'osaka',kind:'option',duration:'견학 약 90분',tags:['오사카','스이타','맥주','공장견학','예약','시음','옵션'],desc:'오사카부 스이타시의 아사히 맥주 생산시설에 있는 체험형 뮤지엄. 제조 과정 체험과 맥주 시음이 가능하며 우메다에서 JR로 접근하기 편하다.',image:FALLBACK,facts:{위치:'오사카부 스이타시',소요:'투어 약 90분',요금:'20세 이상 ¥1,000 안내 (2026-10 기준)'},reservation:'투어는 사전 예약 필요. 2027년 5월 일정은 예약 개시 후 확인.',source:'https://www.asahibeer.co.jp/brewery/suita/'},
   {id:'ninosaka',title:'Nintendo OSAKA',category:'osaka',kind:'main',duration:'60~90분',tags:['닌텐도','오사카'],desc:'오사카의 Nintendo 공식 직영점. Pokémon Center OSAKA와 같은 생활권이라 한 번에 묶기 좋다.',image:'https://cdn.prod.rexby.com/image/f4242834cc8f4f63ac91a6da175eefc1',facts:{위치:'LUCUA SOUTH 13F','성격':'Nintendo 공식 직영점'},reservation:'통상 예약 없음. 혼잡 시 공지 확인.',source:'https://www.nintendo.com/jp/officialstore/index.html'},
   {id:'pkmosaka',title:'Pokémon Center OSAKA',category:'osaka',kind:'main',duration:'40~70분',tags:['포켓몬','오사카'],desc:'우메다의 공식 포켓몬센터. Nintendo OSAKA와 같은 층이라 추가 동선이 거의 없다.',image:'https://maido-bob.osaka/wp-content/uploads/2024/02/PokemonCenterOsaka_01.jpg',facts:{위치:'LUCUA SOUTH 13F','장점':'Nintendo OSAKA와 묶기 쉬움'},reservation:'통상 예약 없음.',source:'https://shop.pokemon.co.jp/en/shop/pokemoncenter-osaka/'},
   {id:'shinsaibashi',title:'신사이바시 · Pokémon Center OSAKA DX',category:'shinsaibashi',kind:'option',duration:'45~90분',tags:['포켓몬','신사이바시','옵션'],desc:'Pokémon Center OSAKA와 일반 굿즈 중복은 많지만, Pokémon Cafe·도톤보리와 묶으면 별도 방문 가치가 생긴다.',image:'https://cdn.osaka-info.jp/page_translation/content/16889556312516/img_01.jpg',facts:{위치:'다이마루 신사이바시 본관 9F','성격':'공식 포켓몬센터'},reservation:'매장 예약 없음. 혼잡 공지는 여행 직전 확인.',source:'https://shop.pokemon.co.jp/en/shop/pokemoncenter-osakadx/'},
@@ -39,6 +41,8 @@ const places = [
 // v13: 모든 장소의 실제/현장 참고 이미지와 상세 모달 정보를 한 곳에서 보강합니다.
 // 운영시간·예약 조건은 2026-10 확인 기준이며 2027-05 방문 전 공식 페이지를 다시 확인하세요.
 const PLACE_ENRICHMENTS = {
+  suntorykyoto:{image:'https://www.kyoto-kankou.or.jp/rails/active_storage/representations/proxy/eyJfcmFpbHMiOnsiZGF0YSI6MTQ1ODMsInB1ciI6ImJsb2JfaWQifX0%3D--a133f38a04189e6f8991b82d050dfc54c2b563fa/eyJfcmFpbHMiOnsiZGF0YSI6eyJmb3JtYXQiOiJ3ZWJwIiwicmVzaXplX3RvX2ZpdCI6WzM4NDAsMjE2MF19LCJwdXIiOiJ2YXJpYXRpb24ifX0%3D--630881e9d11d002401bb31e7761298dd383639ea/1%E3%82%B5%E3%83%B3%E3%83%88%E3%83%AA%E3%83%BC%E3%80%88%E5%A4%A9%E7%84%B6%E6%B0%B4%E3%81%AE%E3%83%93%E3%83%BC%E3%83%AB%E5%B7%A5%E5%A0%B4%E3%80%89%E4%BA%AC%E9%83%BD%20%28003%29.jpg',facts:{주소:'京都府長岡京市調子3-1-1',현재운영:'9:30~17:00 / 숍 11:00~16:30 안내',접근:'JR 나가오카쿄역 무료 셔틀 또는 한큐 니시야마텐노잔역 도보 약 10분',견학:'일반 투어 약 90분 · 성인 ¥1,000 안내',시음:'더 프리미엄 몰츠 시음 포함'},tips:['교토 시조·가와라마치나 우지의 Nintendo Museum과는 별도 권역이므로 왕복 이동시간을 추가로 잡기','시음하지 않을 경우 제공 가능한 음료와 투어 조건을 예약 시 확인','2027년 5월 일정과 예약 개시일은 방문 전에 공식 홈페이지에서 확인'],photoNote:'교토 관광연맹 제공 · 산토리 교토 맥주공장 참고 사진',checkedAt:'2026-10'},
+  asahisuita:{image:'https://osaka-info.jp/spot/images/b7b68d68e3976311b2989228b2fd9e2fb5d57abe.jpg',facts:{주소:'大阪府吹田市西の庄町1-45',현재운영:'9:30~16:50 / 숍 16:40까지 안내',접근:'JR 스이타역 동쪽 개찰구(북쪽 출구) 도보 약 10분',견학:'뮤지엄 투어 약 90분 · 20세 이상 ¥1,000 안내',시음:'투어 후 최대 2잔 · 무알코올 음료 선택 가능'},tips:['오사카역·우메다 관광일에 넣을 수 있지만 스이타역 왕복 이동시간은 따로 확보','투어 온라인 예약은 1~6명 기준으로 안내됨','2027년 5월 예약 개시일과 휴관일은 공식 페이지에서 재확인'],photoNote:'오사카 관광 공식 사이트 제공 · 아사히 맥주 뮤지엄 참고 사진',checkedAt:'2026-10'},
   kix:{image:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Kansai_International_Airport_Terminal_1.jpg/1280px-Kansai_International_Airport_Terminal_1.jpg',facts:{권역:'KIX · Aeroplaza',핵심:'입국·출국 및 공항 숙박의 기준점',연계:'JR/Nankai 간사이공항역 · Aeroplaza'},tips:['12일 밤 도착안이면 입국 후 숙소까지 이동시간과 체크인 마감부터 확인','13일 아침 교토로 갈 때 HARUKA·신오사카 경유 여부를 여기서 결정'],photoNote:'간사이국제공항 제1터미널 실제 이미지',checkedAt:'2026-10'},
   darakhyu:{image:'https://www.vietnamairlines.com/content/dam/legacy-site-assets/SEO-images/2025%20SEO/Traffic%20TV/san-bay-incheon/san-bay-incheon/sanh-nha-ga-t1.png?width=1920',facts:{위치:'인천공항 T1 교통센터 1F / T2 교통센터 B1F 일반구역',숙박형태:'캡슐호텔 · Day Use / Overnight',현재기준:'T1 Overnight 20:00~08:00 안내',편의:'샤워·휴식공간·비즈니스 코너'},tips:['이용 항공편 터미널(T1/T2)을 먼저 확인하고 해당 다락휴로 예약','아침 비행기라면 출국 수속·보안검색 시간을 역산해 체크아웃 시간 결정'],photoNote:'인천공항 제1터미널 실제 이미지 · 다락휴는 교통센터 일반구역',checkedAt:'2026-10'},
   firstcabin:{image:'https://first-cabin.jp/wp-content/uploads/2024/06/kansai_01.jpg',facts:{위치:'KIX Aeroplaza',형태:'캐빈형 숙박',장점:'공항 밖 장거리 이동 없이 바로 취침',추천상황:'12일 늦은 밤 KIX 도착'},tips:['심야 도착 시 입국·수하물 수령이 늦어질 수 있으니 체크인 가능시간 확인','아침에는 Aeroplaza에서 JR/Nankai 역으로 바로 이어 이동하기 편함'],photoNote:'First Cabin Kansai Airport 공식 이미지',checkedAt:'2026-10'},
@@ -94,13 +98,17 @@ const ROUTE_GROUPS = [
   {id:'route-kyoto-a',major:'교토권',areaKey:'kyoto-a',title:'교토 A · 시조/가와라마치',region:'시조·가와라마치',duration:'2~3시간',placeIds:['pkmkyoto','ninkyoto'],desc:'Pokémon Center KYOTO와 Nintendo KYOTO를 같은 도심권에서 묶는 핵심 쇼핑 동선.',defaultPlaceIds:['pkmkyoto','ninkyoto']},
   {id:'route-kyoto-b',major:'교토권',areaKey:'kyoto-b',title:'교토 B · 시치조/교토역권',region:'교토역·시치조',duration:'1~2시간 + 숙박',placeIds:['marufukuro','kyotohotel'],desc:'옛 Nintendo 본사 역사 스폿과 교토 숙소 거점을 묶어 보는 권역.',defaultPlaceIds:['marufukuro']},
   {id:'route-kyoto-c',major:'교토권',areaKey:'kyoto-c',title:'교토 C · 우지/오구라',region:'우지·오구라',duration:'3~5시간',placeIds:['museum'],desc:'Nintendo Museum 하나를 중심으로 따로 시간을 잡아야 하는 우지 권역.',defaultPlaceIds:['museum']},
+  {id:'route-kyoto-d',major:'교토권',areaKey:'kyoto-d',title:'교토 D · 나가오카쿄 맥주공장',region:'나가오카쿄',duration:'견학 약 90분 + 왕복 이동',placeIds:['suntorykyoto'],desc:'산토리 천연수 맥주공장 견학. 교토 시내 핵심 쇼핑 동선과 분리해 원하는 날짜에 추가하는 예약제 선택 코스.',defaultPlaceIds:['suntorykyoto']},
   {id:'route-osaka-a',major:'오사카권',areaKey:'osaka-a',title:'오사카 A · 우메다/오사카역',region:'우메다·오사카역',duration:'2~3시간',placeIds:['ninosaka','pkmosaka','cardstation','osakahotel'],desc:'Nintendo OSAKA, Pokémon Center OSAKA, Pokémon Card Station을 같은 역권에서 이어 보는 동선.',defaultPlaceIds:['ninosaka','pkmosaka','cardstation']},
   {id:'route-osaka-b',major:'오사카권',areaKey:'osaka-b',title:'오사카 B · 신사이바시/난바',region:'신사이바시·난바',duration:'3~5시간',placeIds:['shinsaibashi','pokecafe','kirbystore','dotonbori'],desc:'같은 건물의 Pokémon Center DX·Pokémon Cafe·Kirby Store를 보고 도톤보리까지 이어가는 동선.',defaultPlaceIds:['shinsaibashi','pokecafe','kirbystore','dotonbori']},
   {id:'route-osaka-c',major:'오사카권',areaKey:'osaka-c',title:'오사카 C · 닛폰바시/오타로드',region:'닛폰바시·오타로드',duration:'3~5시간',placeIds:['superpotato','gametanteidan','preyzotaro','preyzmain'],desc:'레트로 Nintendo 하드웨어·소프트와 Pokémon Card·TCG 매장을 도보권에서 몰아서 보는 쇼핑 동선.',defaultPlaceIds:['superpotato','gametanteidan','preyzotaro']},
-  {id:'route-osaka-d',major:'오사카권',areaKey:'osaka-d',title:'오사카 D · 유니버설시티',region:'USJ·Universal City',duration:'하루',placeIds:['usj','snw'],desc:'USJ를 하루 잡고 SUPER NINTENDO WORLD를 핵심으로 보는 동선.',defaultPlaceIds:['usj','snw'],optionNote:'Power-Up Band는 장소가 아니라 SUPER NINTENDO WORLD 체험 옵션으로 관리합니다.'}
+  {id:'route-osaka-d',major:'오사카권',areaKey:'osaka-d',title:'오사카 D · 유니버설시티',region:'USJ·Universal City',duration:'하루',placeIds:['usj','snw'],desc:'USJ를 하루 잡고 SUPER NINTENDO WORLD를 핵심으로 보는 동선.',defaultPlaceIds:['usj','snw'],optionNote:'Power-Up Band는 장소가 아니라 SUPER NINTENDO WORLD 체험 옵션으로 관리합니다.'},
+  {id:'route-osaka-e',major:'오사카권',areaKey:'osaka-e',title:'오사카 E · 스이타 맥주공장',region:'스이타',duration:'견학 약 90분 + 왕복 이동',placeIds:['asahisuita'],desc:'아사히 맥주 뮤지엄 투어. 오사카역·우메다에서 JR로 이동하는 예약제 선택 코스.',defaultPlaceIds:['asahisuita']}
 ];
 
 const RESERVATION_RULES = {
+  suntorykyoto:{level:'required',title:'공장 견학 예약 필수',doneLabel:'투어 예약 완료',note:'공식 사이트에서 날짜·시간별 투어를 미리 예약하세요.'},
+  asahisuita:{level:'required',title:'공장 견학 예약 필수',doneLabel:'투어 예약 완료',note:'아사히 뮤지엄 투어를 사전에 예약하세요.'},
   museum:{level:'required',title:'예약 필수',doneLabel:'티켓 확보',note:'날짜·시간 지정 티켓을 사전에 확보해야 합니다.'},
   pokecafe:{level:'required',title:'예약 필수',doneLabel:'예약 완료',note:'Pokémon Cafe는 사전예약이 필요합니다.'},
   usj:{level:'required',title:'티켓 필요',doneLabel:'티켓 확보',note:'파크 입장권을 방문 전에 확보하세요.'},
@@ -123,17 +131,21 @@ const AREA_META = {
   'kyoto-a':{label:'교토 A · 시조/가와라마치',major:'교토권',order:4},
   'kyoto-b':{label:'교토 B · 시치조/교토역권',major:'교토권',order:5},
   'kyoto-c':{label:'교토 C · 우지/오구라',major:'교토권',order:6},
+  'kyoto-d':{label:'교토 D · 나가오카쿄/맥주공장',major:'교토권',order:6.5},
   'osaka-a':{label:'오사카 A · 우메다/오사카역',major:'오사카권',order:7},
   'osaka-b':{label:'오사카 B · 신사이바시/난바',major:'오사카권',order:8},
   'osaka-c':{label:'오사카 C · 닛폰바시/오타로드',major:'오사카권',order:9},
   'osaka-d':{label:'오사카 D · 유니버설시티',major:'오사카권',order:10},
+  'osaka-e':{label:'오사카 E · 스이타/맥주공장',major:'오사카권',order:10.5},
   transfer:{label:'도시간·공항 이동',major:'이동',order:11}
 };
 const MAJOR_ORDER=['출국 전','공항권','신오사카','교토권','오사카권','이동'];
 const PLACE_AREA = {
   darakhyu:'icn',kix:'kix',firstcabin:'kix',nikkokix:'kix',kixhotel:'kix',washingtonkix:'rinku',kixnearhotel:'rinku',
   shinosaka:'shinosaka',ekiben:'shinosaka',pokemonstand:'shinosaka',
+  suntorykyoto:'kyoto-d',
   pkmkyoto:'kyoto-a',ninkyoto:'kyoto-a',marufukuro:'kyoto-b',kyotohotel:'kyoto-b',museum:'kyoto-c',
+  asahisuita:'osaka-e',
   ninosaka:'osaka-a',pkmosaka:'osaka-a',cardstation:'osaka-a',osakahotel:'osaka-a',
   shinsaibashi:'osaka-b',pokecafe:'osaka-b',kirbystore:'osaka-b',dotonbori:'osaka-b',
   superpotato:'osaka-c',gametanteidan:'osaka-c',preyzotaro:'osaka-c',preyzmain:'osaka-c',dendentown:'osaka-c',
@@ -142,6 +154,8 @@ const PLACE_AREA = {
 const PLACE_LIBRARY_EXCLUDE=new Set(['dendentown','powerup']);
 const PLACE_OPTION_NOTES={snw:'Power-Up Band · 선택 옵션: 구입 시 키 챌린지·코인 등 연동 체험을 확장할 수 있습니다.'};
 const PLACE_CARD_META = {
+  suntorykyoto:{type:'맥주공장',cls:'experience',tags:['Suntory','공장견학','시음']},
+  asahisuita:{type:'맥주공장',cls:'experience',tags:['Asahi','공장견학','시음']},
   kix:{type:'공항',cls:'airport',tags:['입출국','환승']},
   darakhyu:{type:'숙박',cls:'hotel',tags:['캡슐호텔','인천공항']},
   firstcabin:{type:'숙박',cls:'hotel',tags:['캡슐호텔','공항직결']},
