@@ -24,6 +24,7 @@
         </div>
       </div>
       <button id="jsonSaveBtn" class="btn primary" type="button">공유 저장</button>
+      <details class="data-menu"><summary aria-label="일정 데이터 관리">백업·복구 ▾</summary><div class="data-menu-content"><button id="jsonBackupBtn" type="button">현재 일정 JSON 백업</button><button id="jsonImportBtn" type="button">JSON에서 불러오기</button><input id="jsonImportFile" type="file" accept="application/json,.json" hidden></div></details>
       <span id="jsonStatus" class="json-status neutral">공유 일정 연결 중</span>
     </div>
   </header>
@@ -34,9 +35,15 @@
         <div><h2>여행 장소</h2><p>개별 장소 또는 같은 생활권 동선을 날짜로 끌어 넣으세요.</p></div>
       </div>
 
-      <div class="library-tabs" role="tablist" aria-label="장소와 권역 동선 전환">
-        <button id="placesTab" class="library-tab active" data-mode="places" type="button">장소</button>
-        <button id="routesTab" class="library-tab" data-mode="routes" type="button">권역·동선</button>
+      <div class="place-tools">
+        <label class="place-search-wrap" for="placeSearch"><span aria-hidden="true">⌕</span><input id="placeSearch" type="search" placeholder="장소 이름·지역·태그 검색" autocomplete="off" aria-label="장소 검색"></label>
+        <div class="place-filter" role="group" aria-label="일정 배정 상태">
+          <button type="button" class="place-filter-btn active" data-place-filter="available" aria-pressed="true">미배정</button>
+          <button type="button" class="place-filter-btn" data-place-filter="all" aria-pressed="false">전체</button>
+          <button type="button" class="place-filter-btn" data-place-filter="assigned" aria-pressed="false">배정됨</button>
+          <span id="placeCounts" aria-live="polite"></span>
+        </div>
+        <p class="place-tools-hint">같은 지역 여러 곳은 지역 제목 옆 <b>묶음 추가</b>로 한 번에 배치할 수 있어요.</p>
       </div>
       <div id="placeLibrary" class="library-list"></div>
     </aside>
