@@ -243,7 +243,8 @@ migrateLegacyRoutes();
 let currentFileHandle=null;
 let currentFileName='';
 let dirty=false;
-let libraryMode='places';
+let placeFilter='available';
+let placeSearch='';
 let selectedPlace=null;
 let pendingAdd=null;
 let draggedSchedule=null;
@@ -477,7 +478,13 @@ function sameBuilding(a,b){if(!a||!b)return false;return SAME_BUILDING.some(set=
 function areaLabel(key){return AREA_META[key]?.label||key||''}
 function areaMajor(key){return AREA_META[key]?.major||'기타'}
 
-function renderLibraryTabs(){document.querySelectorAll('.library-tab').forEach(btn=>btn.classList.toggle('active',btn.dataset.mode===libraryMode))}
+function renderLibraryTabs(){
+  document.querySelectorAll('[data-place-filter]').forEach(btn=>{
+    const selected=btn.dataset.placeFilter===placeFilter;
+    btn.classList.toggle('active',selected);
+    btn.setAttribute('aria-pressed',String(selected));
+  });
+}
 function cardMeta(p){return PLACE_CARD_META[p?.id]||{type:'장소',cls:'main',tags:[]}}
 function placeBadges(p,includeTags=false){
   const meta=cardMeta(p),badges=[];
@@ -542,12 +549,15 @@ function bindPlaceVotes(root=document){
     toast('방문 의견을 자동 저장합니다. 저장 완료 표시를 확인하세요.');
   });
 }
+function placeAssignedDays(id){
+  return activeDays().filter(day=>(currentSchedule()[day]||[]).some(item=>itemPlaceIds(item).includes(id)));
+}
 function renderPlaceCard(p){
-  const optionNote=PLACE_OPTION_NOTES[p.id];
+  const optionNote=PLACE_OPTION_NOTES[p.id],assignedDays=placeAssignedDays(p.id);
   return `<article class="place-card" draggable="true" data-place="${p.id}">
     <div class="place-card-main">
       <img class="place-thumb" src="${p.image||FALLBACK}" loading="lazy" decoding="async" alt="${escapeHtml(p.title)} 사진" onerror="this.onerror=null;this.src='${FALLBACK}'">
-      <div class="place-copy"><div class="place-title">${escapeHtml(p.title)}</div><div class="place-description">${escapeHtml(p.desc||"상세 정보는 장소를 클릭해 확인하세요.")}</div><div class="place-meta">${renderPlaceMeta(p)}</div>${optionNote?`<div class="place-option-note">🎮 ${escapeHtml(optionNote)}</div>`:''}</div>
+      <div class="place-copy"><div class="place-title">${escapeHtml(p.title)}${assignedDays.length?`<span class="place-assigned-tag" title="현재 일정에 배정됨">${assignedDays.map(day=>DAY_META[day].date).join(', ')} 등록</span>`:''}</div><div class="place-description">${escapeHtml(p.desc||"상세 정보는 장소를 클릭해 확인하세요.")}</div><div class="place-meta">${renderPlaceMeta(p)}</div>${optionNote?`<div class="place-option-note">🎮 ${escapeHtml(optionNote)}</div>`:''}</div>
       <button class="add-mini" data-add="${p.id}" title="일정에 추가">＋</button>
     </div>
     ${renderRequirementInline(p.id)}
@@ -558,14 +568,21 @@ function renderPlacesGrouped(list){
   const grouped={};list.forEach(p=>{const key=regionKey(p);(grouped[key]??=[]).push(p)});
   const byMajor={};
   Object.entries(grouped).sort((a,b)=>(AREA_META[a[0]]?.order??99)-(AREA_META[b[0]]?.order??99)).forEach(([key,items])=>{const major=areaMajor(key);(byMajor[major]??=[]).push([key,items])});
-  return MAJOR_ORDER.filter(m=>byMajor[m]?.length).map(major=>`<section class="major-region-section"><div class="major-region-head"><strong>${escapeHtml(major)}</strong><span>${byMajor[major].reduce((n,[,items])=>n+items.length,0)}곳</span></div>${byMajor[major].map(([key,items])=>`<details class="region-group" data-region="${escapeHtml(key)}" open><summary><span>${escapeHtml(AREA_META[key]?.label||key)}</span><b>${items.length}</b></summary><div class="region-group-body">${items.map(renderPlaceCard).join('')}</div></details>`).join('')}</section>`).join('');
+  return MAJOR_ORDER.filter(m=>byMajor[m]?.length).map(major=>`<section class="major-region-section">
+    <div class="major-region-head"><strong>${escapeHtml(major)}</strong><span>${byMajor[major].reduce((n,[,items])=>n+items.length,0)}곳</span></div>
+    ${byMajor[major].map(([key,items])=>{
+      const bundles=placeFilter==='available'&&!placeSearch?ROUTE_GROUPS.filter(g=>g.areaKey===key&&g.placeIds.length>1&&selectedRouteIds(g.id).length>1):[];
+      return `<details class="region-group" data-region="${escapeHtml(key)}" open>
+        <summary><span>${escapeHtml(AREA_META[key]?.label||key)}</span><b>${items.length}</b></summary>
+        ${bundles.length?`<div class="region-bundle-tools">${bundles.map(g=>`<button type="button" class="region-bundle-btn" data-bundle-add="${g.id}" title="${escapeHtml(selectedRouteIds(g.id).map(id=>placeById(id)?.title).join(', '))}">＋ ${escapeHtml(g.title)} 묶음 추가</button>`).join('')}</div>`:''}
+        <div class="region-group-body">${items.map(renderPlaceCard).join('')}</div></details>`;
+    }).join('')}</section>`).join('');
 }
 function defaultRouteSelection(g){return new Set((g.defaultPlaceIds?.length?g.defaultPlaceIds:g.placeIds).filter(id=>g.placeIds.includes(id)))}
 function selectedRouteIds(routeId){
   const g=routeById(routeId);if(!g)return[];
-  if(!routeSelections.has(routeId))routeSelections.set(routeId,defaultRouteSelection(g));
   const assigned=schedulePlaceIds();
-  return [...routeSelections.get(routeId)].filter(id=>g.placeIds.includes(id)&&!assigned.has(id));
+  return [...defaultRouteSelection(g)].filter(id=>!assigned.has(id));
 }
 function renderRouteCard(g){
   const members=g.placeIds.map(placeById).filter(Boolean),assigned=schedulePlaceIds();
@@ -586,7 +603,14 @@ function renderRoutesGrouped(){
 }
 function bindLibraryPlaceCards(root){
   root.querySelectorAll('.place-card').forEach(card=>{card.onclick=e=>{if(e.target.closest('[data-add],.inline-requirement,.place-vote'))return;selectPlace(card.dataset.place)};card.addEventListener('dragstart',e=>{if(e.target.closest('button,input,label')){e.preventDefault();return}card.classList.add('dragging');e.dataTransfer.setData('text/place',card.dataset.place);e.dataTransfer.effectAllowed='copy'});card.addEventListener('dragend',()=>card.classList.remove('dragging'))});
-  root.querySelectorAll('[data-add]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();openAddDialog({type:'place',id:btn.dataset.add})});bindReservationToggles(root);bindPlaceVotes(root);
+  root.querySelectorAll('[data-add]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();openAddDialog({type:'place',id:btn.dataset.add})});
+  root.querySelectorAll('[data-bundle-add]').forEach(btn=>btn.onclick=e=>{
+    e.stopPropagation();
+    const id=btn.dataset.bundleAdd,members=selectedRouteIds(id);
+    if(members.length<2){toast('현재 묶음으로 추가할 미배정 장소가 부족합니다.');return;}
+    openAddDialog({type:'route',id,memberIds:members});
+  });
+  bindReservationToggles(root);bindPlaceVotes(root);
 }
 function bindRouteCards(root){
   root.querySelectorAll('.route-library-card').forEach(card=>{card.addEventListener('dragstart',e=>{if(e.target.closest('button,input,label')){e.preventDefault();return}const routeId=card.dataset.route;if(!selectedRouteIds(routeId).length){e.preventDefault();toast('동선에서 한 곳 이상 선택하세요.');return}card.classList.add('dragging');e.dataTransfer.setData('text/route',routeId);e.dataTransfer.effectAllowed='copy'});card.addEventListener('dragend',()=>card.classList.remove('dragging'))});
@@ -595,27 +619,26 @@ function bindRouteCards(root){
   root.querySelectorAll('[data-route-member]').forEach(btn=>btn.onclick=e=>{e.preventDefault();e.stopPropagation();selectPlace(btn.dataset.routeMember)});
 }
 function renderLibrary(returnedIds=[]){
-  const root=document.getElementById('placeLibrary');
-  const scrollTop=root.scrollTop;
+  const root=document.getElementById('placeLibrary'),scrollTop=root.scrollTop;
   const closedRegions=new Set([...root.querySelectorAll("details.region-group:not([open])")].map(el=>el.dataset.region));
-  if(libraryMode==='routes'){
-    root.innerHTML=renderRoutesGrouped();bindRouteCards(root);root.scrollTop=scrollTop;return;
-  }
   const assigned=schedulePlaceIds();
-  const list=places.filter(p=>!PLACE_LIBRARY_EXCLUDE.has(p.id)&&!assigned.has(p.id));
-  // The library is an unassigned inventory, not a permanent duplicate of the itinerary.
-  root.innerHTML=renderPlacesGrouped(list)||'<div class="library-empty">모든 장소가 일정에 등록됐습니다. 일정 카드의 ×를 누르면 장소가 다시 표시됩니다.</div>';
+  const available=places.filter(p=>!PLACE_LIBRARY_EXCLUDE.has(p.id));
+  const count=document.getElementById('placeCounts');
+  if(count)count.textContent=available.filter(p=>!assigned.has(p.id)).length+' 미배정 / '+available.length+' 전체';
+  const query=placeSearch.trim().toLocaleLowerCase();
+  const list=available.filter(p=>{
+    if(placeFilter==='available'&&assigned.has(p.id))return false;
+    if(placeFilter==='assigned'&&!assigned.has(p.id))return false;
+    return !query||[p.title,p.desc,areaLabel(regionKey(p)),...(p.tags||[])].join(' ').toLocaleLowerCase().includes(query);
+  });
+  root.innerHTML=renderPlacesGrouped(list)||'<div class="library-empty">조건에 맞는 장소가 없습니다. 검색어 또는 배정 필터를 바꿔보세요.</div>';
   bindLibraryPlaceCards(root);
   root.querySelectorAll("details.region-group").forEach(el=>{if(closedRegions.has(el.dataset.region))el.open=false;});
   root.scrollTop=scrollTop;
   const returned=returnedIds.find(id=>!assigned.has(id)&&!PLACE_LIBRARY_EXCLUDE.has(id));
-  if(returned){
+  if(returned&&placeFilter==='available'){
     const card=[...root.querySelectorAll('[data-place]')].find(el=>el.dataset.place===returned);
-    if(card){
-      const group=card.closest('details.region-group');if(group)group.open=true;
-      card.classList.add('returned-place');
-      card.scrollIntoView({block:'nearest',behavior:'auto'});
-    }
+    if(card){const group=card.closest('details.region-group');if(group)group.open=true;card.classList.add('returned-place');card.scrollIntoView({block:'nearest',behavior:'auto'});}
   }
 }
 
@@ -707,7 +730,7 @@ function removeItem(itemId,day){
   const remaining=schedulePlaceIds();
   const restored=placeIds.filter(id=>!remaining.has(id));
   persist();
-  if(placeIds.length&&restored.length&&libraryMode!=='places'){libraryMode='places';renderLibraryTabs();}
+  if(restored.length&&placeFilter==='assigned'){placeFilter='available';renderLibraryTabs();}
   renderLibrary(restored);renderBoard();
   toast(restored.length?'장소 목록으로 돌아왔습니다.':placeIds.length?'다른 일정에서 사용 중인 장소는 목록에 남지 않습니다.':'커스텀 일정을 삭제했습니다.');
 }
@@ -786,7 +809,10 @@ document.querySelectorAll('#customDialog [data-custom-cancel]').forEach(btn=>btn
 document.getElementById('detailAddBtn').onclick=()=>{if(selectedPlace)openAddDialog({type:'place',id:selectedPlace.id})};
 document.getElementById('detailCloseBtn').onclick=()=>document.getElementById('detailDialog').close();
 document.getElementById('detailDialog').addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.close()});
-document.querySelectorAll('.library-tab').forEach(btn=>btn.onclick=()=>{libraryMode=btn.dataset.mode;renderLibraryTabs();renderLibrary()});
+document.querySelectorAll('[data-place-filter]').forEach(btn=>btn.onclick=()=>{
+  placeFilter=btn.dataset.placeFilter;renderLibraryTabs();renderLibrary();
+});
+document.getElementById('placeSearch').addEventListener('input',e=>{placeSearch=e.target.value;renderLibrary()});
 document.getElementById('jsonSaveBtn').onclick=saveJson;
 window.addEventListener('beforeunload',e=>{if(!dirty)return;e.preventDefault();e.returnValue=''});
 window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveJson()}});
