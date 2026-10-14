@@ -419,7 +419,7 @@ function planCount(planName){return Object.values(state.plans[planName]||{}).red
 function selectPlanWithSavedItems(){
   const has12=planCount('use12')>0;
   const has13=planCount('start13')>0;
-  // 둘 다 있거나 둘 다 비었으면 B(13일 출발)를 기본으로 표시합니다.
+  // 한쪽에만 일정이 있으면 그 일정안을 선택하고, 양쪽 모두 있으면 저장된 선택을 유지합니다.
   if(has12&&!has13)state.activePlan='use12';
   else if(has13&&!has12)state.activePlan='start13';
   // 둘 다 있는 경우에는 공유 JSON에 저장된 사용자의 선택을 보존합니다.
