@@ -554,7 +554,7 @@ function bindReservationToggles(root=document){
     const day=inp.dataset.reservationDay;
     if(!activeDays().includes(day))return;
     state.reservationDone[reservationKey(inp.dataset.reservationToggle,day)]=inp.checked;
-    persist();renderLibrary();renderBoard();
+    persist();renderBoard();
   });
   root.querySelectorAll('.inline-requirement').forEach(row=>row.onclick=e=>e.stopPropagation());
 }
@@ -762,7 +762,10 @@ function moveItem(itemId,from,to,targetIndex){
   // getDropIndex already excludes the dragged card: decrementing again shifts it left.
   insertAt=Math.max(0,Math.min(insertAt,toList.length));
   toList.splice(insertAt,0,item);
-  persist();renderLibrary();renderBoard();
+  persist();
+  // Moving within the same day never changes assigned catalog data.
+  if(from!==to&&placeFilter!=='available')renderLibrary();
+  renderBoard();
 }
 function updateTime(itemId,day,key,value){const item=currentSchedule()[day].find(x=>x.uid===itemId);if(!item)return;item[key]=value;persist();renderBoard()}
 function toggleRouteItem(itemId,day){const item=currentSchedule()[day].find(x=>x.uid===itemId);if(!item)return;item.expanded=!item.expanded;persist();renderBoard()}
