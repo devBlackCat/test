@@ -141,6 +141,7 @@
   function analysis(day){
     const items=(state.plans[state.activePlan]||{})[day]||[];
     const nodes=items.map(makeNode),candidate=nodes.slice();
+    const ambiguousLodging=new Set(nodes.filter(n=>isLodging(n.item)).map(n=>n.item.placeId||n.item.routeId)).size>1;
     let segments=0;
     for(let i=0;i<candidate.length;){
       if(candidate[i].locked){i++;continue;}
@@ -156,6 +157,7 @@
     const gain=Math.max(0,current.km-better.km);
     return {day:day,nodes:nodes,candidate:candidate,current:current,better:better,gain:gain,
       percent:current.km>0?gain/current.km*100:0,segments:segments,
+      ambiguousLodging:ambiguousLodging,
       excluded:nodes.filter(n=>!n.pts.length).length,
       constrained:nodes.filter(n=>n.locked).length,
       reordered:candidate.some((n,i)=>n!==nodes[i])};
@@ -166,39 +168,110 @@
     return "https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(a.query)+
       "&destination="+encodeURIComponent(b.query)+"&travelmode=transit";
   }
-  function summaryText(a){
-    if(a.nodes.length<2)return "장소 추가 후 동선 분석";
-    if(a.current.connections===0)return "위치 연결 데이터 부족";
-    if(a.gain>=0.5&&a.percent>=8)return "직선 "+fmt(a.current.km)+"km · 개선 여지 "+fmt(a.gain)+"km";
-    return "직선 합계 "+fmt(a.current.km)+"km · 큰 우회 미감지";
+  function isLodging(item) {
+    const ids=item.placeId ? [item.placeId] : (item.routeId ?
+      (Array.isArray(item.memberIds)&&item.memberIds.length ? item.memberIds : routeById(item.routeId)?.placeIds||[]) : []);
+    return ids.some(id=>{
+      const place=placeById(id);
+      return place&&(place.kind==="hotel"||place.tags?.includes("숙박"));
+    });
   }
-  function makeDayButtons() {
+  function canImprove(a) {
+    return a.nodes.length>=3 && a.reordered && a.gain>=0.5 && a.percent>=8 &&
+      !a.ambiguousLodging && a.current.missing===0 && a.better.missing===0;
+  }
+  function edgeKey(left,right) { return left.index+"->"+right.index; }
+  function suggestedLegIndex(a) {
+    if(!canImprove(a))return -1;
+    const proposedEdges=new Set(a.candidate.slice(1).map((n,i)=>edgeKey(a.candidate[i],n)));
+    let selected=-1,maximum=-1;
+    for(let i=1;i<a.nodes.length;i++){
+      const prior=a.nodes[i-1],curr=a.nodes[i];
+      if(proposedEdges.has(edgeKey(prior,curr)))continue;
+      if(isLodging(prior.item)&&isLodging(curr.item))continue;
+      const km=distance(prior,curr);
+      if(km!==null&&km>maximum){maximum=km;selected=i;}
+    }
+    return selected;
+  }
+  function makeLabel(value,className) {
+    const el=document.createElement("span");
+    el.className=className;el.textContent=value;
+    return el;
+  }
+  function renderLegHints() {
     document.querySelectorAll(".day-column").forEach(column=>{
       const day=column.dataset.day;
-      const head=column.querySelector(".day-head");
-      if(!day||!head)return;
-      const a=analysis(day);
-      let btn=head.querySelector(".route-analyze-btn");
-      if(!btn){
-        btn=document.createElement("button");
-        btn.type="button";btn.className="route-analyze-btn";
-        btn.addEventListener("click",()=>openModal(day));
-        head.appendChild(btn);
-      }
-      btn.textContent="↗ 동선 분석 · "+summaryText(a);
-      btn.classList.toggle("route-analyze-warning",a.gain>=0.5&&a.percent>=8);
-      btn.title="장소의 대략적 좌표로 계산한 직선거리 비교. 실제 이동 km·시간은 지도에서 확인";
-      const cards=[...column.querySelectorAll(".schedule-card")];
+      if(!day)return;
+      const a=analysis(day),cards=[...column.querySelectorAll(".schedule-card")];
+      const suggestion=suggestedLegIndex(a);
       for(let i=1;i<cards.length&&i<a.nodes.length;i++){
-        const hint=cards[i].previousElementSibling;
-        if(!hint||!hint.classList.contains("movement-hint"))continue;
-        const km=distance(a.nodes[i-1],a.nodes[i]);
-        if(km===null)continue;
-        const label=document.createElement("span");
-        label.className="route-segment-km";label.textContent=" · 직선 "+fmt(km)+"km";
-        hint.appendChild(label);
-        const url=mapLink(a.nodes[i-1].last,a.nodes[i].first);
-        if(url){const link=document.createElement("a");link.className="route-segment-link";link.href=url;link.target="_blank";link.rel="noopener noreferrer";link.textContent="실제 경로 ↗";link.title="Google 지도에서 대중교통 경로·이동시간 확인";hint.appendChild(link);}
+        const prior=a.nodes[i-1],curr=a.nodes[i],card=cards[i];
+        let hint=card.previousElementSibling;
+        if(!hint||!hint.classList.contains("movement-hint")){
+          hint=document.createElement("div");
+          card.parentNode.insertBefore(hint,card);
+        }
+        const bothHotels=isLodging(prior.item)&&isLodging(curr.item);
+        const km=distance(prior,curr);
+        const onsite=km!==null&&km<0.06;
+        hint.className="movement-hint route-leg-hint"+(bothHotels?" route-leg-choice":km!==null&&km>=15?" route-leg-long":"");
+        hint.textContent="";
+        const row=document.createElement("div");
+        row.className="route-leg-head";
+        row.appendChild(makeLabel("↓","route-leg-arrow"));
+        if(bothHotels){
+          row.appendChild(makeLabel("숙박 후보 2곳 · 실제 숙박지 선택 필요","route-leg-main"));
+        }else if(km===null){
+          row.appendChild(makeLabel("위치·이동수단 미확정 · 거리 계산 제외","route-leg-main"));
+        }else if(onsite){
+          row.appendChild(makeLabel("같은 시설권역 · 이동 거의 없음","route-leg-main"));
+        }else{
+          const prefix=km>=15?"원거리 이동 · ":"";
+          row.appendChild(makeLabel(prefix+"직선 약 "+fmt(km)+"km","route-leg-main"));
+        }
+        hint.appendChild(row);
+        if(bothHotels) {
+          hint.appendChild(makeLabel("비교용 후보라면 한 곳만 확정해 주세요.","route-leg-detail"));
+          continue;
+        }
+        const link=mapLink(prior.last,curr.first);
+        const actions=document.createElement("div");
+        actions.className="route-leg-actions";
+        if(link&&!onsite){
+          const anchor=document.createElement("a");
+          anchor.className="route-segment-link";anchor.href=link;
+          anchor.target="_blank";anchor.rel="noopener noreferrer";
+          anchor.textContent="실제 교통 경로 확인 ↗";
+          anchor.title="Google 지도에서 실제 도보·대중교통 경로와 이동시간 확인";
+          actions.appendChild(anchor);
+        }
+        if(i===suggestion) {
+          const btn=document.createElement("button");
+          btn.type="button";btn.className="route-suggestion-btn";
+          btn.textContent="↩ 방문 순서 개선 후보";
+          btn.title="하루의 다른 장소들과 순서를 비교합니다. 직선거리 추정 기준입니다.";
+          btn.addEventListener("click",()=>openModal(day));
+          actions.appendChild(btn);
+        }
+        if(actions.childNodes.length)hint.appendChild(actions);
+      }
+      // A route bundle is one schedule card; show inner distances inside the card.
+      for(let i=0;i<cards.length&&i<a.nodes.length;i++){
+        const n=a.nodes[i];
+        if(!n.item.routeId||n.pts.length<2)continue;
+        const holder=cards[i].querySelector(".route-schedule-members");
+        if(!holder)continue;
+        let sum=0,known=0;
+        for(let j=1;j<n.pts.length;j++){
+          const km=haversine(n.pts[j-1],n.pts[j]);
+          if(km!==null){sum+=km;known++;}
+        }
+        if(!known)continue;
+        const note=document.createElement("div");
+        note.className="route-inner-distance";
+        note.textContent="↳ 묶음 내부 "+n.pts.length+"곳 · 직선 약 "+fmt(sum)+"km";
+        holder.appendChild(note);
       }
     });
   }
@@ -257,15 +330,18 @@
     const order=proposed?a.candidate:a.nodes;
     dialog.querySelector("#raTitle").textContent="5/"+openDay+" · 동선 진단";
     const root=dialog.querySelector("#raContent");
-    const improved=a.gain>=.5&&a.percent>=8&&a.reordered;
+    const improved=canImprove(a);
     const canUndo=!!undo&&undo.day===openDay&&undo.plan===state.activePlan;
     root.innerHTML=
       '<p class="route-analysis-disclaimer">표시된 km는 <strong>대략적 좌표 사이 직선거리 합계</strong>입니다. 도보거리·철도 소요시간·환승 횟수가 아닙니다. 실제 경로는 각 구간 Google 지도에서 확인하세요.</p>'+
       '<div class="route-analysis-stats"><div><small>현재 직선 합계</small><b>'+fmt(a.current.km)+' km</b></div><div><small>추천 순서 직선 합계</small><b>'+fmt(a.better.km)+' km</b></div><div><small>예상 감소분</small><b class="'+(improved?'better':'')+'">'+fmt(a.gain)+' km</b></div></div>'+
       '<p class="route-analysis-explain">'+(a.nodes.length<2?'비교하려면 같은 날짜에 장소를 두 곳 이상 추가하세요.':
+        a.ambiguousLodging?'같은 날짜에 숙박 후보가 여러 개 있습니다. 실제 숙박할 곳을 확정한 후 분석해 주세요.':
         a.current.connections===0?'위치를 연결할 수 있는 구간이 없어 분석할 수 없습니다.':
+        a.nodes.length===2?'두 장소 사이 이동거리는 확인할 수 있지만, 방문 순서만으로 효율을 판정할 수는 없습니다.':
+        a.current.missing>0?'좌표가 없는 일정이 있어 전체 동선 비교는 제한됩니다.':
         improved?'직선거리 기준으로 더 짧은 방문 순서가 있습니다. 예약·영업시간에 적합한지는 별도로 확인하세요.':
-        '현재 순서에서 의미 있는 직선거리 단축안은 발견되지 않았습니다. 대중교통 기준 최적 경로라는 뜻은 아닙니다.')+'</p>'+
+        '직선거리 기준으로 순서 변경에 따른 큰 단축은 발견되지 않았습니다. 실제 대중교통의 효율성을 판단한 결과는 아닙니다.')+'</p>'+
       '<div class="route-analysis-tabs" role="group" aria-label="동선 비교"><button type="button" data-ra-mode="current" class="'+(!proposed?'selected':'')+'">현재 순서</button><button type="button" data-ra-mode="recommended" class="'+(proposed?'selected':'')+'">개선 후보</button></div>'+
       '<div class="route-analysis-map">'+drawing(order)+'</div>'+
       renderList(order)+
@@ -277,7 +353,7 @@
     root.querySelectorAll("[data-ra-mode]").forEach(b=>b.addEventListener("click",()=>{displayMode=b.dataset.raMode;renderModal();}));
     root.querySelector("#raApply").addEventListener("click",()=>{
       const latest=analysis(openDay);
-      if(!(latest.gain>=.5&&latest.percent>=8&&latest.reordered))return;
+      if(!canImprove(latest))return;
       const original=latest.nodes.map(n=>n.item);
       if(!confirm("입력된 시간·숙박·교통 일정을 고정한 채, 나머지 장소의 순서를 바꾸시겠습니까?"))return;
       undo={day:openDay,plan:state.activePlan,items:original};
@@ -307,6 +383,6 @@
     console.warn("Route diagnostics: trip planner is not loaded.");return;
   }
   const oldRenderBoard=renderBoard;
-  renderBoard=function(){oldRenderBoard();makeDayButtons();};
-  makeDayButtons();
+  renderBoard=function(){oldRenderBoard();renderLegHints();};
+  renderLegHints();
 })();
