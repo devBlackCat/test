@@ -179,6 +179,7 @@ body{min-width:0;display:flex;flex-direction:column;overflow:hidden}
 .compact-mode .schedule-card.is-selected .time-row{display:grid}
 .compact-mode .schedule-card.is-selected .card-time-readout{display:none}
 .compact-mode .card-more:not([open]){display:none}
+.compact-mode .schedule-card.is-selected .card-more{display:block}
 .compact-mode .booking-tag{font-size:8px}
 .compact-mode .route-schedule-members{margin-top:4px}
 .compact-mode .route-schedule-members button{padding:3px 5px}
