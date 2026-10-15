@@ -236,14 +236,20 @@
       for(let i=1;i<cards.length&&i<a.nodes.length;i++){
         const prior=a.nodes[i-1],curr=a.nodes[i],card=cards[i];
         let hint=card.previousElementSibling;
-        if(!hint||!hint.classList.contains("movement-hint")){
-          hint=document.createElement("div");
-          card.parentNode.insertBefore(hint,card);
-        }
         const bothHotels=isLodging(prior.item)&&isLodging(curr.item)&&
           (prior.item.placeId||prior.item.routeId)!==(curr.item.placeId||curr.item.routeId);
         const km=distance(prior,curr);
         const onsite=km!==null&&km<0.06;
+        // A transport/custom block without two geo endpoints must not generate
+        // a fake or repetitive "unknown location" distance row.
+        if(!bothHotels&&(km===null||onsite)){
+          if(hint?.classList.contains("movement-hint"))hint.remove();
+          continue;
+        }
+        if(!hint||!hint.classList.contains("movement-hint")){
+          hint=document.createElement("div");
+          card.parentNode.insertBefore(hint,card);
+        }
         hint.className="movement-hint route-leg-hint"+(bothHotels?" route-leg-choice":km!==null&&km>=15?" route-leg-long":"");
         hint.textContent="";
         const row=document.createElement("div");
@@ -251,12 +257,8 @@
         row.appendChild(makeLabel("↓","route-leg-arrow"));
         if(bothHotels){
           row.appendChild(makeLabel("숙박 후보 2곳 · 실제 숙박지 선택 필요","route-leg-main"));
-        }else if(km===null){
-          row.appendChild(makeLabel("위치·이동수단 미확정 · 거리 계산 제외","route-leg-main"));
-        }else if(onsite){
-          row.appendChild(makeLabel("같은 시설권역 · 이동 거의 없음","route-leg-main"));
         }else{
-          const prefix=km>=15?"원거리 이동 · ":"";
+          const prefix=km>=15?"원거리 · ":"";
           row.appendChild(makeLabel(prefix+"직선 약 "+fmt(km)+"km","route-leg-main"));
         }
         hint.appendChild(row);
@@ -411,6 +413,12 @@
   if(typeof renderBoard!=="function"||typeof state==="undefined"||typeof places==="undefined"){
     console.warn("Route diagnostics: trip planner is not loaded.");return;
   }
+  // Read-only summaries used by the lower planner panel. Measurements are
+  // approximate straight-line distances, and missing legs are not inferred.
+  window.tripRouteSummary=function(day){
+    const a=analysis(day);
+    return {km:a.current.km,known:a.current.connections,missing:a.current.missing,excluded:a.excluded};
+  };
   const oldRenderBoard=renderBoard;
   renderBoard=function(){oldRenderBoard();renderLegHints();};
   renderLegHints();
