@@ -289,6 +289,9 @@ let syncInProgress=false;
 let editRevision=0;
 let voteSaveTimer=null;
 let libraryDropBound=false;
+// Preserve loaded image elements when the place catalog is filtered or updated.
+const libraryCardCache=new Map();
+let lastLibraryMarkup=null;
 function queueVoteSave(){
   clearTimeout(voteSaveTimer);
   voteSaveTimer=setTimeout(()=>{
@@ -624,7 +627,7 @@ function selectedRouteIds(routeId){
   return [...defaultRouteSelection(g)].filter(id=>!assigned.has(id));
 }
 function bindLibraryPlaceCards(root){
-  root.querySelectorAll('.place-card').forEach(card=>{card.onclick=e=>{if(e.target.closest('[data-add],.inline-requirement,.place-vote'))return;selectPlace(card.dataset.place)};card.addEventListener('dragstart',e=>{if(e.target.closest('button,input,label')){e.preventDefault();return}card.classList.add('dragging');e.dataTransfer.setData('text/place',card.dataset.place);e.dataTransfer.effectAllowed='copy'});card.addEventListener('dragend',()=>card.classList.remove('dragging'))});
+  root.querySelectorAll('.place-card').forEach(card=>{card.onclick=e=>{if(e.target.closest('[data-add],.inline-requirement,.place-vote'))return;selectPlace(card.dataset.place)};card.ondragstart=e=>{if(e.target.closest('button,input,label')){e.preventDefault();return}card.classList.add('dragging');e.dataTransfer.setData('text/place',card.dataset.place);e.dataTransfer.effectAllowed='copy'};card.ondragend=()=>card.classList.remove('dragging')});
   root.querySelectorAll('[data-add]').forEach(btn=>btn.onclick=e=>{e.stopPropagation();openAddDialog({type:'place',id:btn.dataset.add})});
   root.querySelectorAll('[data-bundle-add]').forEach(btn=>btn.onclick=e=>{
     e.stopPropagation();
@@ -647,8 +650,20 @@ function renderLibrary(returnedIds=[]){
     if(placeFilter==='assigned'&&!assigned.has(p.id))return false;
     return !query||[p.title,p.desc,areaLabel(regionKey(p)),...(p.tags||[])].join(' ').toLocaleLowerCase().includes(query);
   });
-  root.innerHTML=renderPlacesGrouped(list)||'<div class="library-empty">조건에 맞는 장소가 없습니다. 검색어 또는 배정 필터를 바꿔보세요.</div>';
-  bindLibraryPlaceCards(root);
+  const markup=renderPlacesGrouped(list)||'<div class="library-empty">조건에 맞는 장소가 없습니다. 검색어 또는 배정 필터를 바꿔보세요.</div>';
+  if(markup!==lastLibraryMarkup){
+    const template=document.createElement('template');
+    template.innerHTML=markup;
+    // Keep loaded image elements and their listeners when a place's HTML has not changed.
+    template.content.querySelectorAll('.place-card').forEach(card=>{
+      const id=card.dataset.place,signature=card.outerHTML,cached=libraryCardCache.get(id);
+      if(cached&&cached.signature===signature)card.replaceWith(cached.node);
+      else libraryCardCache.set(id,{node:card,signature});
+    });
+    root.replaceChildren(template.content);
+    lastLibraryMarkup=markup;
+    bindLibraryPlaceCards(root);
+  }
   root.querySelectorAll("details.region-group").forEach(el=>{if(closedRegions.has(el.dataset.region))el.open=false;});
   root.scrollTop=scrollTop;
   const returned=returnedIds.find(id=>!assigned.has(id)&&!PLACE_LIBRARY_EXCLUDE.has(id));
