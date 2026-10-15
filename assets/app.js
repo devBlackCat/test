@@ -789,23 +789,60 @@ function renderBoard(){
   board.innerHTML=days.map(day=>{const items=currentSchedule()[day]||[];const cards=items.map((item,i)=>`${i?renderMovement(items[i-1],item):''}${renderScheduleCard(item,day,timingWarnings(items,i))}`).join('');return `<section class="day-column" data-day="${day}"><header class="day-head"><div class="day-title-line"><div><span class="day-date">${DAY_META[day].date}</span><span class="day-week">${DAY_META[day].week}</span></div><div class="day-head-actions"><span class="day-count">${items.length}개</span><button type="button" class="day-add-btn" data-custom-day="${day}">＋ 일정</button></div></div></header><div class="drop-zone" data-day="${day}">${items.length?cards:'<div class="empty-drop"><div><b>비어 있음</b>왼쪽 장소·권역 동선을 끌어오세요.</div></div>'}</div></section>`}).join('');
   bindScheduleDrag();bindPlaceVotes(board);document.querySelectorAll('[data-custom-day]').forEach(btn=>btn.onclick=()=>openCustomForDay(btn.dataset.customDay));updateRequiredWarning();syncCustomDayOptions();bindReservationToggles(board);
 }
+function bookingTag(place,day){
+  const rule=place&&RESERVATION_RULES[place.id];
+  if(!rule)return '';
+  const done=!!state.reservationDone[reservationKey(place.id,day)];
+  const label=done?'✓ 완료':rule.level==='required'?'예약 필수':rule.level==='conditional'?'입장 확인':'예약 권장';
+  return `<span class="booking-tag ${done?'done':rule.level}">${label}</span>`;
+}
+
+function compactCardDetails(item,place,day){
+  const rule=place&&RESERVATION_RULES[place.id],note=place&&PLACE_OPTION_NOTES[place.id];
+  if(!rule&&!note&&!item.memo)return '';
+  return `<details class="card-more"><summary>${rule?'예약 확인 · 상세':'메모 · 상세'}</summary>
+    <div class="card-more-content">
+      ${note?`<p class="card-extra-note">${escapeHtml(note)}</p>`:''}
+      ${place?renderRequirementInline(place.id,'schedule',day):''}
+      ${item.memo?`<p class="card-extra-note">${escapeHtml(item.memo)}</p>`:''}
+    </div></details>`;
+}
+
 function renderScheduleCard(item,day,warnings=[]){
   if(item.routeId)return renderRouteScheduleCard(item,day,warnings);
-  const p=item.placeId?placeById(item.placeId):null;const title=p?.title||item.title||'일정';const kind=p?.kind||'custom';const note=p?.duration||item.memo||'직접 추가';
-  return `<article class="schedule-card ${kind}" draggable="true" data-item="${escapeHtml(item.uid)}" data-day="${day}">
-    <div class="card-head"><span class="drag-handle">⠿</span><div class="card-title">${escapeHtml(title)}</div><div class="card-actions">${p?`<button class="card-icon detail-btn" data-place="${p.id}" title="상세">ⓘ</button>`:`<button class="card-icon edit-custom-btn" data-edit-custom="${item.uid}" data-day="${day}" title="제목·메모 수정" aria-label="일정 수정">✎</button>`}<button class="card-icon remove-btn" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="삭제" aria-label="일정에서 삭제">×</button></div></div>
+  const place=item.placeId?placeById(item.placeId):null;
+  const title=place?.title||item.title||'일정',kind=place?.kind||'custom';
+  return `<article class="schedule-card ${kind}" draggable="true" tabindex="0" role="button" aria-label="${escapeHtml(title)} 선택" data-item="${escapeHtml(item.uid)}" data-day="${day}">
+    <div class="card-head"><span class="drag-handle" aria-hidden="true">⠿</span><div class="card-title">${escapeHtml(title)}</div>${bookingTag(place,day)}
+      <div class="card-actions">${place?`<button class="card-icon detail-btn" data-place="${place.id}" title="장소 상세">ⓘ</button>`:`<button class="card-icon edit-custom-btn" data-edit-custom="${escapeHtml(item.uid)}" data-day="${day}" title="제목·메모 수정">✎</button>`}
+      <button class="card-icon remove-btn" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="삭제">×</button></div>
+    </div>
+    <div class="card-time-readout">${escapeHtml(item.start||'시간 미정')}${item.end?' – '+escapeHtml(item.end):''}</div>
     ${renderWarnings(warnings)}
     <div class="time-row"><label class="time-field"><span>시작</span><input type="time" value="${escapeHtml(item.start||'')}" data-time="start" data-item="${escapeHtml(item.uid)}" data-day="${day}"></label><label class="time-field"><span>종료</span><input type="time" value="${escapeHtml(item.end||'')}" data-time="end" data-item="${escapeHtml(item.uid)}" data-day="${day}"></label></div>
-    <div class="card-note">${escapeHtml(item.memo||note)}</div>${p&&PLACE_OPTION_NOTES[p.id]?`<div class="schedule-option-note">🎮 ${escapeHtml(PLACE_OPTION_NOTES[p.id])}</div>`:''}${p?renderRequirementInline(p.id,'schedule',day):''}</article>`;
+    <div class="card-note">${escapeHtml(item.memo||place?.duration||'직접 추가')}</div>
+    ${compactCardDetails(item,place,day)}</article>`;
 }
+
 function renderRouteScheduleCard(item,day,warnings=[]){
-  const g=routeById(item.routeId);if(!g)return '';const memberIds=item.memberIds?.length?item.memberIds:g.placeIds;const members=memberIds.map(placeById).filter(Boolean);const shown=item.expanded?members:members.slice(0,2);const reqs=members.filter(p=>RESERVATION_RULES[p.id]);
-  return `<article class="schedule-card route-schedule-card" draggable="true" data-item="${escapeHtml(item.uid)}" data-day="${day}">
-    <div class="card-head"><span class="drag-handle">⠿</span><div class="card-title"><span class="route-label">동선</span>${escapeHtml(g.title)}</div><div class="card-actions"><button class="card-icon route-toggle" data-route-toggle="${escapeHtml(item.uid)}" data-day="${day}" title="펼치기">${item.expanded?'▴':'▾'}</button><button class="card-icon ungroup-btn" data-ungroup="${escapeHtml(item.uid)}" data-day="${day}" title="묶음 해제">↗</button><button class="card-icon remove-btn" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="삭제">×</button></div></div>
+  const group=routeById(item.routeId);
+  if(!group)return '';
+  const memberIds=item.memberIds?.length?item.memberIds:group.placeIds;
+  const members=memberIds.map(placeById).filter(Boolean),shown=item.expanded?members:members.slice(0,2);
+  const reqs=members.filter(place=>RESERVATION_RULES[place.id]);
+  return `<article class="schedule-card route-schedule-card" draggable="true" tabindex="0" role="button" aria-label="${escapeHtml(group.title)} 선택" data-item="${escapeHtml(item.uid)}" data-day="${day}">
+    <div class="card-head"><span class="drag-handle" aria-hidden="true">⠿</span><div class="card-title"><span class="route-label">묶음</span>${escapeHtml(group.title)}</div>
+    <div class="card-actions"><button class="card-icon route-toggle" data-route-toggle="${escapeHtml(item.uid)}" data-day="${day}" title="묶음 펼치기">${item.expanded?'▴':'▾'}</button>
+    <button class="card-icon ungroup-btn" data-ungroup="${escapeHtml(item.uid)}" data-day="${day}" title="묶음 해제">↗</button>
+    <button class="card-icon remove-btn" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="삭제">×</button></div></div>
+    <div class="card-time-readout">${escapeHtml(item.start||'시간 미정')}${item.end?' – '+escapeHtml(item.end):''}</div>
     ${renderWarnings(warnings)}
     <div class="time-row"><label class="time-field"><span>시작</span><input type="time" value="${escapeHtml(item.start||'')}" data-time="start" data-item="${escapeHtml(item.uid)}" data-day="${day}"></label><label class="time-field"><span>종료</span><input type="time" value="${escapeHtml(item.end||'')}" data-time="end" data-item="${escapeHtml(item.uid)}" data-day="${day}"></label></div>
-    <div class="route-schedule-members">${shown.map((p,i)=>`<button type="button" data-place-inline="${p.id}"><span>${i+1}</span>${escapeHtml(p.title)}${RESERVATION_RULES[p.id]?.level==='required'?'<b>예약</b>':''}</button>`).join('')}${!item.expanded&&members.length>2?`<small>+ ${members.length-2}곳 더</small>`:''}</div>
-    ${g.optionNote?`<div class="schedule-option-note">🎮 ${escapeHtml(g.optionNote)}</div>`:''}<div class="card-note">${escapeHtml(g.region)} · ${escapeHtml(g.duration)}</div>${reqs.map(p=>renderRequirementInline(p.id,'schedule',day)).join('')}</article>`;
+    <div class="route-schedule-members">${shown.map((p,i)=>`<button type="button" data-place-inline="${p.id}"><span>${i+1}</span>${escapeHtml(p.title)}${RESERVATION_RULES[p.id]?.level==='required'?'<b>예약</b>':''}</button>`).join('')}
+    ${!item.expanded&&members.length>2?`<small>+ ${members.length-2}곳 더</small>`:''}</div>
+    <div class="card-note">${escapeHtml(group.region)} · ${escapeHtml(group.duration)}</div>
+    ${group.optionNote||reqs.length?`<details class="card-more"><summary>예약 · 묶음 상세</summary><div class="card-more-content">${group.optionNote?`<p class="card-extra-note">${escapeHtml(group.optionNote)}</p>`:''}${reqs.map(p=>renderRequirementInline(p.id,'schedule',day)).join('')}</div></details>`:''}
+  </article>`;
 }
 function getDropIndex(zone,clientY){const cards=[...zone.querySelectorAll('.schedule-card:not(.dragging)')];for(let i=0;i<cards.length;i++){const rect=cards[i].getBoundingClientRect();if(clientY<rect.top+rect.height/2)return i}return cards.length}
 function bindScheduleDrag(){
