@@ -784,6 +784,91 @@ function timingWarnings(items,index){
   return warnings;
 }
 function renderWarnings(warnings){return warnings.length?`<div class="schedule-warning">⚠ ${warnings.map(escapeHtml).join(' · ')}</div>`:''}
+function renderMobileDayNav(){
+  const nav=document.getElementById('mobileDayNav');
+  if(!nav)return;
+  nav.innerHTML=activeDays().map(day=>{
+    const count=(currentSchedule()[day]||[]).length;
+    return `<button type="button" class="mobile-day-button ${day===activeMobileDay?'active':''}" data-mobile-day="${day}" aria-current="${day===activeMobileDay?'date':'false'}">${DAY_META[day].date}<small>${count}개</small></button>`;
+  }).join('');
+  nav.querySelectorAll('[data-mobile-day]').forEach(button=>button.onclick=()=>{
+    activeMobileDay=button.dataset.mobileDay;
+    selectedScheduleDay=activeMobileDay;selectedScheduleUid=null;
+    renderBoard();
+  });
+}
+
+function getSelectedItem(){
+  const item=(currentSchedule()[selectedScheduleDay]||[]).find(x=>x.uid===selectedScheduleUid);
+  return item?{item,day:selectedScheduleDay}:null;
+}
+
+function renderDayInspector(){
+  const root=document.getElementById('dayInspector');if(!root)return;
+  const selected=getSelectedItem(),day=selected?.day||activeMobileDay;
+  const list=currentSchedule()[day]||[],reqs=new Map();
+  list.forEach(item=>itemPlaceIds(item).forEach(id=>{if(RESERVATION_RULES[id])reqs.set(id,placeById(id))}));
+  const pending=[...reqs.keys()].filter(id=>!state.reservationDone[reservationKey(id,day)]).length;
+  const stats=window.tripRouteSummary?.(day);
+  const chosen=selected?.item||null,place=chosen?.placeId?placeById(chosen.placeId):null,route=chosen?.routeId?routeById(chosen.routeId):null;
+  const title=place?.title||route?.title||chosen?.title||'일정을 선택해 상세 보기';
+  const description=place?.desc||route?.desc||'위의 일정 카드를 선택하면 장소 설명과 메모를 확인할 수 있습니다.';
+  root.innerHTML=`<div class="inspector-top">
+    <div class="inspector-heading"><span class="inspector-eyebrow">${DAY_META[day].date} ${DAY_META[day].week}요일 · 하루 요약</span><strong>${list.length}개 일정 · ${pending?pending+'개 예약 확인 필요':'예약 확인 완료'}</strong></div>
+    <button id="inspectorRouteBtn" type="button" class="display-btn" ${!window.openTripRouteAnalysis?'disabled':''}>동선 비교 · 지도</button>
+  </div>
+  <div class="inspector-content">
+    <div class="inspector-stats">
+      <div class="inspector-stat"><small>일정</small><strong>${list.length}<em>개</em></strong></div>
+      <div class="inspector-stat"><small>예약 확인</small><strong>${pending}<em>건</em></strong></div>
+      <div class="inspector-stat"><small>확인된 구간 거리</small><strong>${stats&&stats.known?stats.km.toFixed(1):'–'}<em>${stats&&stats.known?'km':''}</em></strong></div>
+      <p class="inspector-footnote">좌표가 있는 구간의 직선거리만 집계합니다. 실제 대중교통 거리·시간은 지도로 확인하세요.</p>
+    </div>
+    <div class="inspector-details">
+      <div class="inspector-details-head"><strong>${escapeHtml(title)}</strong>${chosen?'<button id="inspectorClose" type="button" class="inspector-minor">선택 해제</button>':''}</div>
+      <p class="inspector-description">${escapeHtml(description)}</p>
+      ${chosen?`<label class="inspector-memo-label" for="inspectorMemo">내 메모</label><p class="inspector-memo-readonly">${escapeHtml(chosen.memo||'메모 없음')}</p>
+      <div class="inspector-memo-edit"><textarea id="inspectorMemo" rows="2" placeholder="시간·예약·이동 메모를 기록하세요">${escapeHtml(chosen.memo||'')}</textarea><button id="inspectorMemoSave" class="display-btn" type="button">메모 저장</button></div>`:''}
+      ${place?'<button id="inspectorPlaceDetails" type="button" class="inspector-minor">장소 상세·사진 보기 ↗</button>':''}
+    </div>
+    <div class="inspector-bookings"><strong>예약·확인 체크</strong>
+    ${reqs.size?[...reqs].map(([id,p])=>{
+      const rule=RESERVATION_RULES[id],checked=!!state.reservationDone[reservationKey(id,day)];
+      return `<label class="inspector-booking"><input type="checkbox" data-reservation-toggle="${escapeHtml(id)}" data-reservation-day="${day}" ${checked?'checked':''}><span>${escapeHtml(p?.title||id)}<small>${escapeHtml(rule.title)}</small></span></label>`;
+    }).join(''):'<p class="inspector-empty">예약 체크 대상이 없습니다.</p>'}
+    </div>
+  </div>`;
+  root.querySelector('#inspectorRouteBtn')?.addEventListener('click',()=>window.openTripRouteAnalysis?.(day));
+  root.querySelector('#inspectorClose')?.addEventListener('click',()=>{selectedScheduleUid=null;renderBoard()});
+  root.querySelector('#inspectorPlaceDetails')?.addEventListener('click',()=>{if(place)selectPlace(place.id)});
+  root.querySelector('#inspectorMemoSave')?.addEventListener('click',()=>{
+    const value=(root.querySelector('#inspectorMemo')?.value||'').slice(0,2500);
+    if(!chosen||chosen.memo===value)return;
+    chosen.memo=value;persist();renderBoard();toast('메모를 저장했습니다.');
+  });
+  bindReservationToggles(root);
+}
+
+function applyUiDensity(compact){
+  compactMode=compact;document.body.classList.toggle('compact-mode',compact);
+  const btn=document.getElementById('densityToggle');
+  if(btn){btn.textContent=compact?'여유 있게 보기':'간결하게 보기';btn.setAttribute('aria-pressed',String(compact));}
+  try{localStorage.setItem('trip-density-v1',compact?'compact':'comfortable')}catch{}
+}
+
+function toggleMobileEditing(){
+  mobileEditing=!mobileEditing;document.body.classList.toggle('mobile-editing',mobileEditing);
+  const btn=document.getElementById('mobileEditToggle');
+  if(btn){btn.textContent=mobileEditing?'보기 모드':'편집하기';btn.setAttribute('aria-pressed',String(mobileEditing));}
+}
+
+function toggleMobileLibrary(){
+  const opened=document.body.classList.toggle('mobile-library-open');
+  const btn=document.getElementById('mobileLibraryToggle');
+  if(btn){btn.textContent=opened?'장소 닫기':'장소 추가';btn.setAttribute('aria-expanded',String(opened));}
+  if(opened)document.getElementById('libraryPanel')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function renderBoard(){
   const days=activeDays(),board=document.getElementById('scheduleBoard');board.style.setProperty('--day-count',days.length);
   board.innerHTML=days.map(day=>{const items=currentSchedule()[day]||[];const cards=items.map((item,i)=>`${i?renderMovement(items[i-1],item):''}${renderScheduleCard(item,day,timingWarnings(items,i))}`).join('');return `<section class="day-column" data-day="${day}"><header class="day-head"><div class="day-title-line"><div><span class="day-date">${DAY_META[day].date}</span><span class="day-week">${DAY_META[day].week}</span></div><div class="day-head-actions"><span class="day-count">${items.length}개</span><button type="button" class="day-add-btn" data-custom-day="${day}">＋ 일정</button></div></div></header><div class="drop-zone" data-day="${day}">${items.length?cards:'<div class="empty-drop"><div><b>비어 있음</b>왼쪽 장소·권역 동선을 끌어오세요.</div></div>'}</div></section>`}).join('');
