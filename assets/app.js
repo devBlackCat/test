@@ -871,8 +871,9 @@ function toggleMobileLibrary(){
 
 function renderBoard(){
   const days=activeDays(),board=document.getElementById('scheduleBoard');board.style.setProperty('--day-count',days.length);
-  board.innerHTML=days.map(day=>{const items=currentSchedule()[day]||[];const cards=items.map((item,i)=>`${i?renderMovement(items[i-1],item):''}${renderScheduleCard(item,day,timingWarnings(items,i))}`).join('');return `<section class="day-column" data-day="${day}"><header class="day-head"><div class="day-title-line"><div><span class="day-date">${DAY_META[day].date}</span><span class="day-week">${DAY_META[day].week}</span></div><div class="day-head-actions"><span class="day-count">${items.length}개</span><button type="button" class="day-add-btn" data-custom-day="${day}">＋ 일정</button></div></div></header><div class="drop-zone" data-day="${day}">${items.length?cards:'<div class="empty-drop"><div><b>비어 있음</b>왼쪽 장소·권역 동선을 끌어오세요.</div></div>'}</div></section>`}).join('');
+  board.innerHTML=days.map(day=>{const items=currentSchedule()[day]||[];const cards=items.map((item,i)=>`${i?renderMovement(items[i-1],item):''}${renderScheduleCard(item,day,timingWarnings(items,i))}`).join('');return `<section class="day-column ${day===activeMobileDay?'mobile-active-day':''}" data-day="${day}"><header class="day-head"><div class="day-title-line"><div><span class="day-date">${DAY_META[day].date}</span><span class="day-week">${DAY_META[day].week}</span></div><div class="day-head-actions"><span class="day-count">${items.length}개</span><button type="button" class="day-add-btn" data-custom-day="${day}">＋ 일정</button></div></div></header><div class="drop-zone" data-day="${day}">${items.length?cards:'<div class="empty-drop"><div><b>비어 있음</b>장소 목록에서 추가하거나 +일정을 눌러주세요.</div></div>'}</div></section>`}).join('');
   bindScheduleDrag();bindPlaceVotes(board);document.querySelectorAll('[data-custom-day]').forEach(btn=>btn.onclick=()=>openCustomForDay(btn.dataset.customDay));updateRequiredWarning();syncCustomDayOptions();bindReservationToggles(board);
+  renderMobileDayNav();renderDayInspector();
 }
 function bookingTag(place,day){
   const rule=place&&RESERVATION_RULES[place.id];
@@ -935,6 +936,19 @@ function bindScheduleDrag(){
   document.querySelectorAll('.drop-zone').forEach(zone=>{zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');e.dataTransfer.dropEffect=(e.dataTransfer.types.includes('text/place')||e.dataTransfer.types.includes('text/route'))?'copy':'move'});zone.addEventListener('dragleave',e=>{if(!zone.contains(e.relatedTarget))zone.classList.remove('dragover')});zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');const day=zone.dataset.day,targetIndex=getDropIndex(zone,e.clientY),placeId=e.dataTransfer.getData('text/place');if(placeId){addPlaceToDay(placeId,day,targetIndex);return}const routeId=e.dataTransfer.getData('text/route');if(routeId){const ids=selectedRouteIds(routeId);if(ids.length)addRouteToDay(routeId,day,targetIndex,ids);return}if(draggedSchedule)moveItem(draggedSchedule.uid,draggedSchedule.from,day,targetIndex)})});
   const library=document.getElementById('libraryPanel');
   if(!libraryDropBound){libraryDropBound=true;library.addEventListener('dragover',e=>{if(!draggedSchedule)return;e.preventDefault();library.classList.add('library-drop-active');e.dataTransfer.dropEffect='move'});library.addEventListener('dragleave',e=>{if(!library.contains(e.relatedTarget))library.classList.remove('library-drop-active')});library.addEventListener('drop',e=>{if(!draggedSchedule)return;e.preventDefault();library.classList.remove('library-drop-active');removeItem(draggedSchedule.uid,draggedSchedule.from);draggedSchedule=null;toast('일정에서 뺐습니다.')});}
+  document.querySelectorAll('.schedule-card').forEach(card=>{
+    const choose=()=>{
+      selectedScheduleUid=card.dataset.item;selectedScheduleDay=card.dataset.day;activeMobileDay=card.dataset.day;
+      document.querySelectorAll('.schedule-card').forEach(el=>el.classList.toggle('is-selected',el===card));
+      renderDayInspector();
+      if(window.matchMedia('(max-width:920px)').matches)
+        document.getElementById('dayInspector')?.scrollIntoView({behavior:'smooth',block:'nearest'});
+    };
+    card.onclick=e=>{if(!e.target.closest('button,input,label,a,summary,details'))choose()};
+    card.onkeydown=e=>{if(e.target===card&&(e.key==='Enter'||e.key===' ')){e.preventDefault();choose()}};
+    if(card.dataset.item===selectedScheduleUid&&card.dataset.day===selectedScheduleDay)
+      card.classList.add('is-selected');
+  });
   document.querySelectorAll('.remove-btn').forEach(b=>b.onclick=()=>removeItem(b.dataset.remove,b.dataset.day));
   document.querySelectorAll('[data-edit-custom]').forEach(b=>b.onclick=()=>openEditCustom(b.dataset.editCustom,b.dataset.day));
   document.querySelectorAll('.detail-btn').forEach(b=>b.onclick=()=>selectPlace(b.dataset.place));
