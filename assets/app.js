@@ -898,7 +898,7 @@ function renderScheduleCard(item,day,warnings=[]){
   if(item.routeId)return renderRouteScheduleCard(item,day,warnings);
   const place=item.placeId?placeById(item.placeId):null;
   const title=place?.title||item.title||'일정',kind=place?.kind||'custom';
-  return `<article class="schedule-card ${kind}" draggable="true" tabindex="0" role="button" aria-label="${escapeHtml(title)} 선택" data-item="${escapeHtml(item.uid)}" data-day="${day}">
+  return `<article class="schedule-card ${kind}" draggable="true" tabindex="0" role="group" aria-label="${escapeHtml(title)} 선택" data-item="${escapeHtml(item.uid)}" data-day="${day}">
     <div class="card-head"><span class="drag-handle" aria-hidden="true">⠿</span><div class="card-title">${escapeHtml(title)}</div>${bookingTag(place,day)}
       <div class="card-actions">${place?`<button class="card-icon detail-btn" data-place="${place.id}" title="장소 상세">ⓘ</button>`:`<button class="card-icon edit-custom-btn" data-edit-custom="${escapeHtml(item.uid)}" data-day="${day}" title="제목·메모 수정">✎</button>`}
       <button class="card-icon remove-btn" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="삭제">×</button></div>
@@ -916,7 +916,7 @@ function renderRouteScheduleCard(item,day,warnings=[]){
   const memberIds=item.memberIds?.length?item.memberIds:group.placeIds;
   const members=memberIds.map(placeById).filter(Boolean),shown=item.expanded?members:members.slice(0,2);
   const reqs=members.filter(place=>RESERVATION_RULES[place.id]);
-  return `<article class="schedule-card route-schedule-card" draggable="true" tabindex="0" role="button" aria-label="${escapeHtml(group.title)} 선택" data-item="${escapeHtml(item.uid)}" data-day="${day}">
+  return `<article class="schedule-card route-schedule-card" draggable="true" tabindex="0" role="group" aria-label="${escapeHtml(group.title)} 선택" data-item="${escapeHtml(item.uid)}" data-day="${day}">
     <div class="card-head"><span class="drag-handle" aria-hidden="true">⠿</span><div class="card-title"><span class="route-label">묶음</span>${escapeHtml(group.title)}</div>
     <div class="card-actions"><button class="card-icon route-toggle" data-route-toggle="${escapeHtml(item.uid)}" data-day="${day}" title="묶음 펼치기">${item.expanded?'▴':'▾'}</button>
     <button class="card-icon ungroup-btn" data-ungroup="${escapeHtml(item.uid)}" data-day="${day}" title="묶음 해제">↗</button>
@@ -932,6 +932,16 @@ function renderRouteScheduleCard(item,day,warnings=[]){
 }
 function getDropIndex(zone,clientY){const cards=[...zone.querySelectorAll('.schedule-card:not(.dragging)')];for(let i=0;i<cards.length;i++){const rect=cards[i].getBoundingClientRect();if(clientY<rect.top+rect.height/2)return i}return cards.length}
 function bindScheduleDrag(){
+  document.querySelectorAll('.day-head').forEach(header=>{
+    header.addEventListener('click',event=>{
+      if(event.target.closest('button'))return;
+      const day=header.closest('.day-column')?.dataset.day;
+      if(!day)return;
+      activeMobileDay=day;selectedScheduleDay=day;selectedScheduleUid=null;
+      document.querySelectorAll('.schedule-card.is-selected').forEach(card=>card.classList.remove('is-selected'));
+      renderMobileDayNav();renderDayInspector();
+    });
+  });
   document.querySelectorAll('.schedule-card').forEach(card=>{card.addEventListener('dragstart',e=>{if(e.target.closest('input,button,label')){e.preventDefault();return}draggedSchedule={uid:card.dataset.item,from:card.dataset.day};card.classList.add('dragging');e.dataTransfer.setData('text/schedule',card.dataset.item);e.dataTransfer.effectAllowed='move'});card.addEventListener('dragend',()=>{card.classList.remove('dragging');document.querySelectorAll('.dragover,.library-drop-active').forEach(el=>el.classList.remove('dragover','library-drop-active'));draggedSchedule=null})});
   document.querySelectorAll('.drop-zone').forEach(zone=>{zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragover');e.dataTransfer.dropEffect=(e.dataTransfer.types.includes('text/place')||e.dataTransfer.types.includes('text/route'))?'copy':'move'});zone.addEventListener('dragleave',e=>{if(!zone.contains(e.relatedTarget))zone.classList.remove('dragover')});zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');const day=zone.dataset.day,targetIndex=getDropIndex(zone,e.clientY),placeId=e.dataTransfer.getData('text/place');if(placeId){addPlaceToDay(placeId,day,targetIndex);return}const routeId=e.dataTransfer.getData('text/route');if(routeId){const ids=selectedRouteIds(routeId);if(ids.length)addRouteToDay(routeId,day,targetIndex,ids);return}if(draggedSchedule)moveItem(draggedSchedule.uid,draggedSchedule.from,day,targetIndex)})});
   const library=document.getElementById('libraryPanel');
