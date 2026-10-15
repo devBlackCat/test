@@ -419,7 +419,9 @@
     const a=analysis(day);
     return {km:a.current.km,known:a.current.connections,missing:a.current.missing,excluded:a.excluded};
   };
+  window.openTripRouteAnalysis=openModal;
   const oldRenderBoard=renderBoard;
   renderBoard=function(){oldRenderBoard();renderLegHints();};
   renderLegHints();
+  if(typeof renderDayInspector==='function')renderDayInspector();
 })();
