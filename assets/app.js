@@ -254,10 +254,14 @@ const DAY_META = {
 };
 
 const JSON_FORMAT='nintendo-kansai-trip-planner';
-const JSON_VERSION=14;
+const JSON_VERSION=15;
+const RECOMMENDATION_ID='kyoto-osaka-2027-05-optimized-v1';
+let recommendedTemplate=null;
+let recommendationPendingSave=false;
 let state = {
-  activePlan:'start13',
-  plans:{use12:{'12':[],'13':[],'14':[],'15':[],'16':[]},start13:{'13':[],'14':[],'15':[],'16':[]}},
+  activePlan:'use12',
+  recommendationId:'',
+  plans:{use12:{'12':[],'13':[],'14':[],'15':[],'16':[]}},
   reservationDone:{},
   placeVotes:{}
 };
@@ -306,18 +310,24 @@ let editingCustom=null;
 let lastRemoved=null;
 let draggedSchedule=null;
 
-function blankPlan(use12=false){return use12?{'12':[],'13':[],'14':[],'15':[],'16':[]}:{'13':[],'14':[],'15':[],'16':[]}}
+function blankPlan(){return {'12':[],'13':[],'14':[],'15':[],'16':[]}}
 function ensureState(){
-  state.activePlan = state.activePlan==='use12'?'use12':'start13';
+  state.activePlan='use12';
   state.plans ||= {};
-  state.plans.use12 ||= blankPlan(true);state.plans.start13 ||= blankPlan(false);
-  ['12','13','14','15','16'].forEach(d=>state.plans.use12[d] ||= []);
-  ['13','14','15','16'].forEach(d=>state.plans.start13[d] ||= []);
+  let primary=state.plans.use12||blankPlan();
+  // Old exports with only B-plan content are migrated to the fixed May 12 plan.
+  const legacy=state.plans.start13;
+  if(legacy&&!Object.values(primary).some(items=>Array.isArray(items)&&items.length)){
+    for(const day of ['13','14','15','16'])if(Array.isArray(legacy[day]))primary[day]=legacy[day];
+  }
+  state.plans={use12:primary};
+  ['12','13','14','15','16'].forEach(d=>{if(!Array.isArray(primary[d]))primary[d]=[]});
+  state.recommendationId=typeof state.recommendationId==='string'?state.recommendationId:'';
   state.reservationDone ||= {};
   state.placeVotes ||= {};
 }
-function currentSchedule(){return state.plans[state.activePlan]}
-function activeDays(){return state.activePlan==='use12'?['12','13','14','15','16']:['13','14','15','16']}
+function currentSchedule(){return state.plans.use12}
+function activeDays(){return ['12','13','14','15','16']}
 function uid(){return 'i_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7)}
 function placeById(id){return places.find(p=>p.id===id)}
 function routeById(id){return ROUTE_GROUPS.find(g=>g.id===id)}
@@ -329,7 +339,7 @@ function setJsonStatus(text,mode='neutral'){
   el.classList.add(mode);
 }
 function markDirty(){dirty=true;setJsonStatus('● 변경됨 · 자동 저장 대기','dirty')}
-function persist(){editRevision++;markDirty();queueVoteSave()}
+function persist(){editRevision++;markDirty();if(!recommendationPendingSave)queueVoteSave()}
 function buildJsonPayload(){
   return {format:JSON_FORMAT,version:JSON_VERSION,savedAt:new Date().toISOString(),state};
 }
@@ -349,6 +359,8 @@ let libraryDropBound=false;
 const libraryCardCache=new Map();
 let lastLibraryMarkup=null;
 function queueVoteSave(){
+  // A freshly suggested plan must never overwrite Google Sheets until Save is clicked.
+  if(recommendationPendingSave)return;
   clearTimeout(voteSaveTimer);
   voteSaveTimer=setTimeout(()=>{
     if(syncInProgress){queueVoteSave();return;}
@@ -398,17 +410,42 @@ async function loadShared({silent=false,force=false}={}){
       return;
     }
     if(result.version===remoteSha&&!force){if(!silent)setJsonStatus('✓ 최신 공유 일정','saved');return;}
-    if(result.data){
-      state=normalizeImportedState(result.data);
-      ensureState();migrateLegacyRoutes();
-      if(!silent||remoteSha===null)selectPlanWithSavedItems();
-      renderAll();
+    const remoteState=result.data?normalizeImportedState(result.data):null;
+    // Only on first entry: show the new official recommendation if the shared
+    // document has not yet saved this itinerary version. Never auto-upload it.
+    const shouldSeed=initialLoading&&!silent&&!!recommendedTemplate&&
+      (!remoteState||remoteState.recommendationId!==RECOMMENDATION_ID);
+    if(shouldSeed){
+      const suggested=normalizeImportedState(recommendedTemplate);
+      suggested.placeVotes={...suggested.placeVotes,...(remoteState?.placeVotes||{})};
+      // Preserve any previously confirmed reservations for the same date/place.
+      suggested.reservationDone={...suggested.reservationDone,...(remoteState?.reservationDone||{})};
+      state=suggested;
+      recommendationPendingSave=true;
+      editRevision++;markDirty();
+    }else if(remoteState){
+      state=remoteState;
+      recommendationPendingSave=false;
+      dirty=false;
     }
-    if(!result.data&&(!silent||remoteSha===null)){selectPlanWithSavedItems();renderBoard();}
-    remoteSha=result.version;dirty=false;
-    setJsonStatus(result.data?'✓ 공유 일정 동기화됨':'✓ 공유 일정 준비됨 · 최초 저장 가능','saved');
+    ensureState();migrateLegacyRoutes();
+    renderAll();
+    remoteSha=result.version;
+    if(shouldSeed){
+      setJsonStatus('● 추천 일정 적용됨 · 공유 저장을 눌러 확정','dirty');
+    }else{
+      dirty=false;
+      setJsonStatus(result.data?'✓ 공유 일정 동기화됨':'✓ 공유 일정 준비됨 · 최초 저장 가능','saved');
+    }
     if(!silent)toast('공유 일정을 불러왔습니다.');
-  }catch(err){console.error('Shared load:',err);setJsonStatus('공유 일정 조회 실패','dirty');if(!silent)toast('조회 실패: '+err.message);}
+  }catch(err){
+    console.error('Shared load:',err);
+    if(initialLoading&&recommendedTemplate){
+      recommendationPendingSave=true;editRevision++;markDirty();
+      setJsonStatus('● 추천 일정 미리보기 · 서버 연결 실패 · 백업 권장','dirty');
+    }else setJsonStatus('공유 일정 조회 실패','dirty');
+    if(!silent)toast('조회 실패: '+err.message);
+  }
   finally{
     syncInProgress=false;
     if(initialLoading){
@@ -467,6 +504,7 @@ async function saveJson(){
       remoteSha=latest.version;
       if(editRevision===savingRevision){
         dirty=false;
+        recommendationPendingSave=false;
         setJsonStatus('✓ Google Sheets 공유 저장 완료','saved');
       }else{
         setJsonStatus('● 추가 변경 사항 저장 대기','dirty');
@@ -487,20 +525,22 @@ function exportJsonBackup(){downloadJsonText(JSON.stringify(buildJsonPayload(),n
 function normalizeImportedState(data){
   const imported=data?.format===JSON_FORMAT?data.state:(data?.state?.plans?data.state:data);
   if(!imported||typeof imported!=='object'||!imported.plans||typeof imported.plans!=='object')throw new Error('지원하지 않는 일정 JSON 형식입니다.');
-  const cleaned={activePlan:imported.activePlan==='use12'?'use12':'start13',plans:{use12:blankPlan(true),start13:blankPlan(false)},reservationDone:{},placeVotes:{}};
+  const cleaned={activePlan:'use12',recommendationId:imported.recommendationId===RECOMMENDATION_ID?RECOMMENDATION_ID:'',plans:{use12:blankPlan()},reservationDone:{},placeVotes:{}};
+  const legacyA=imported.plans.use12||{};
+  const legacyB=imported.plans.start13||{};
+  const importDays=Object.values(legacyA).some(list=>Array.isArray(list)&&list.length)?legacyA:legacyB;
   const legacyIds=new Set(['route-kyoto','route-umeda','route-shinsaibashi','route-dendentown','route-usj']);
   const seenUids=new Set();
   const cleanTime=v=>typeof v==='string'&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v)?v:'';
-  for(const planName of ['use12','start13']){
-    for(const day of Object.keys(cleaned.plans[planName])){
-      const input=imported.plans[planName]?.[day];
+  for(const day of Object.keys(cleaned.plans.use12)){
+      const input=importDays[day];
       if(!Array.isArray(input))continue;
-      cleaned.plans[planName][day]=input.slice(0,200).flatMap(raw=>{
+      cleaned.plans.use12[day]=input.slice(0,200).flatMap(raw=>{
         if(!raw||typeof raw!=='object')return [];
         const oldId=typeof raw.uid==='string'&&/^[\w-]{1,100}$/.test(raw.uid)?raw.uid:'';
         const item={uid:oldId&&!seenUids.has(oldId)?oldId:uid(),start:cleanTime(raw.start),end:cleanTime(raw.end)};
         seenUids.add(item.uid);
-        if(typeof raw.placeId==='string'&&placeById(raw.placeId))item.placeId=raw.placeId;
+        if(typeof raw.placeId==='string'&&placeById(raw.placeId)){item.placeId=raw.placeId;if(typeof raw.memo==='string')item.memo=raw.memo.slice(0,2500);}
         else if(typeof raw.routeId==='string'&&(routeById(raw.routeId)||legacyIds.has(raw.routeId))){
           item.routeId=raw.routeId;
           if(Array.isArray(raw.memberIds))item.memberIds=[...new Set(raw.memberIds.filter(id=>typeof id==='string'&&placeById(id)))].slice(0,40);
@@ -514,7 +554,6 @@ function normalizeImportedState(data){
         }else return [];
         return [item];
       });
-    }
   }
   if(imported.reservationDone&&typeof imported.reservationDone==='object'){
     for(const [key,value] of Object.entries(imported.reservationDone)){
@@ -551,15 +590,7 @@ function schedulePlaceIds(){
   Object.values(currentSchedule()).flat().forEach(item=>itemPlaceIds(item).forEach(id=>ids.add(id)));
   return ids;
 }
-function planCount(planName){return Object.values(state.plans[planName]||{}).reduce((n,list)=>n+list.length,0)}
-function selectPlanWithSavedItems(){
-  const has12=planCount('use12')>0;
-  const has13=planCount('start13')>0;
-  // 한쪽에만 일정이 있으면 그 일정안을 선택하고, 양쪽 모두 있으면 저장된 선택을 유지합니다.
-  if(has12&&!has13)state.activePlan='use12';
-  else if(has13&&!has12)state.activePlan='start13';
-  // 둘 다 있는 경우에는 공유 JSON에 저장된 사용자의 선택을 보존합니다.
-}
+function selectPlanWithSavedItems(){state.activePlan='use12'}
 function regionKey(p){return PLACE_AREA[p?.id]||'transfer'}
 function sameBuilding(a,b){if(!a||!b)return false;return SAME_BUILDING.some(set=>set.has(a)&&set.has(b))}
 function areaLabel(key){return AREA_META[key]?.label||key||''}
@@ -753,8 +784,6 @@ function timingWarnings(items,index){
 }
 function renderWarnings(warnings){return warnings.length?`<div class="schedule-warning">⚠ ${warnings.map(escapeHtml).join(' · ')}</div>`:''}
 function renderBoard(){
-  document.querySelectorAll('.start-btn').forEach(b=>b.classList.toggle('active',(b.dataset.start==='12'&&state.activePlan==='use12')||(b.dataset.start==='13'&&state.activePlan==='start13')));
-  document.querySelector('[data-plan-count="12"]').textContent=planCount('use12');document.querySelector('[data-plan-count="13"]').textContent=planCount('start13');
   const days=activeDays(),board=document.getElementById('scheduleBoard');board.style.setProperty('--day-count',days.length);
   board.innerHTML=days.map(day=>{const items=currentSchedule()[day]||[];const cards=items.map((item,i)=>`${i?renderMovement(items[i-1],item):''}${renderScheduleCard(item,day,timingWarnings(items,i))}`).join('');return `<section class="day-column" data-day="${day}"><header class="day-head"><div class="day-title-line"><div><span class="day-date">${DAY_META[day].date}</span><span class="day-week">${DAY_META[day].week}</span></div><div class="day-head-actions"><span class="day-count">${items.length}개</span><button type="button" class="day-add-btn" data-custom-day="${day}">＋ 일정</button></div></div></header><div class="drop-zone" data-day="${day}">${items.length?cards:'<div class="empty-drop"><div><b>비어 있음</b>왼쪽 장소·권역 동선을 끌어오세요.</div></div>'}</div></section>`}).join('');
   bindScheduleDrag();bindPlaceVotes(board);document.querySelectorAll('[data-custom-day]').forEach(btn=>btn.onclick=()=>openCustomForDay(btn.dataset.customDay));updateRequiredWarning();syncCustomDayOptions();bindReservationToggles(board);
@@ -766,7 +795,7 @@ function renderScheduleCard(item,day,warnings=[]){
     <div class="card-head"><span class="drag-handle">⠿</span><div class="card-title">${escapeHtml(title)}</div><div class="card-actions">${p?`<button class="card-icon detail-btn" data-place="${p.id}" title="상세">ⓘ</button>`:`<button class="card-icon edit-custom-btn" data-edit-custom="${item.uid}" data-day="${day}" title="제목·메모 수정" aria-label="일정 수정">✎</button>`}<button class="card-icon remove-btn" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="삭제" aria-label="일정에서 삭제">×</button></div></div>
     ${renderWarnings(warnings)}
     <div class="time-row"><label class="time-field"><span>시작</span><input type="time" value="${escapeHtml(item.start||'')}" data-time="start" data-item="${escapeHtml(item.uid)}" data-day="${day}"></label><label class="time-field"><span>종료</span><input type="time" value="${escapeHtml(item.end||'')}" data-time="end" data-item="${escapeHtml(item.uid)}" data-day="${day}"></label></div>
-    <div class="card-note">${escapeHtml(note)}</div>${p&&PLACE_OPTION_NOTES[p.id]?`<div class="schedule-option-note">🎮 ${escapeHtml(PLACE_OPTION_NOTES[p.id])}</div>`:''}${p?renderRequirementInline(p.id,'schedule',day):''}</article>`;
+    <div class="card-note">${escapeHtml(item.memo||note)}</div>${p&&PLACE_OPTION_NOTES[p.id]?`<div class="schedule-option-note">🎮 ${escapeHtml(PLACE_OPTION_NOTES[p.id])}</div>`:''}${p?renderRequirementInline(p.id,'schedule',day):''}</article>`;
 }
 function renderRouteScheduleCard(item,day,warnings=[]){
   const g=routeById(item.routeId);if(!g)return '';const memberIds=item.memberIds?.length?item.memberIds:g.placeIds;const members=memberIds.map(placeById).filter(Boolean);const shown=item.expanded?members:members.slice(0,2);const reqs=members.filter(p=>RESERVATION_RULES[p.id]);
@@ -912,7 +941,6 @@ function addCustom(){
   return true;
 }
 
-function setStartDay(day){state.activePlan=day==='12'?'use12':'start13';persist();renderLibrary();renderBoard();toast(day==='12'?'A · 12일 밤 출발 일정':'B · 13일 출발 일정')}
 function undoLastRemoval(){
   if(!lastRemoved||lastRemoved.plan!==state.activePlan){toast('해당 일정안에서만 되돌릴 수 있습니다.');return;}
   const {day,index,item}=lastRemoved;lastRemoved=null;
@@ -931,7 +959,49 @@ function toast(msg,offerUndo=false){
 }
 
 // UI bindings
-document.querySelectorAll('.start-btn').forEach(b=>b.onclick=()=>setStartDay(b.dataset.start));
+// Read the checked-in JSON recommendation; it is a static route plan, not a live AI call.
+async function getRecommendedTemplate(){
+  if(recommendedTemplate)return recommendedTemplate;
+  const response=await fetch('data/recommended-itinerary.json',{cache:'no-store'});
+  if(!response.ok)throw new Error('추천 일정 JSON 조회 실패 (HTTP '+response.status+')');
+  const payload=await response.json();
+  if(payload.format!==JSON_FORMAT||payload.state?.recommendationId!==RECOMMENDATION_ID)
+    throw new Error('추천 일정 JSON 형식 불일치');
+  // Validate the plan and every catalog place before showing it.
+  normalizeImportedState(payload);
+  recommendedTemplate=payload;
+  return payload;
+}
+async function applyRecommendedItinerary(){
+  if(syncInProgress){toast('공유 서버 확인이 끝난 뒤 적용할 수 있습니다.');return;}
+  if(!confirm('현재 12~16일 일정을 AI 추천 동선으로 교체할까요? 기존 일정을 보관하려면 먼저 JSON 백업을 받으세요. 공유 서버는 저장 버튼을 누르기 전까지 변경되지 않습니다.'))return;
+  try{
+    const template=await getRecommendedTemplate();
+    const incoming=normalizeImportedState(template);
+    incoming.placeVotes={...incoming.placeVotes,...(state.placeVotes||{})};
+    // A new day-by-day recommendation does not make old booking checks valid.
+    incoming.reservationDone={};
+    state=incoming;ensureState();migrateLegacyRoutes();
+    lastRemoved=null;recommendationPendingSave=true;
+    clearTimeout(voteSaveTimer);editRevision++;markDirty();
+    renderAll();
+    setJsonStatus('● AI 추천 일정 적용됨 · 공유 저장 필요','dirty');
+    toast('2027년 5월 12~16일 추천 JSON을 적용했습니다. 공유 저장을 눌러 확정하세요.');
+  }catch(error){console.error('Recommendation apply:',error);toast('추천 일정 불러오기 실패: '+error.message);}
+}
+async function bootstrapTrip(){
+  try{
+    const template=await getRecommendedTemplate();
+    state=normalizeImportedState(template);
+    ensureState();renderAll();
+    setJsonStatus('추천 일정 미리보기 · 공유 서버 확인 중','neutral');
+  }catch(error){
+    console.error('Recommendation startup:',error);
+    setJsonStatus('추천 JSON 확인 실패 · 공유 서버 확인 중','neutral');
+  }
+  await loadShared();
+}
+
 document.getElementById('customForm').addEventListener('submit',e=>{e.preventDefault();if(e.submitter?.id!=='customSubmit')return;if(addCustom())document.getElementById('customDialog').close()});
 document.querySelectorAll('#customDialog [data-custom-cancel]').forEach(btn=>btn.addEventListener('click',()=>{editingCustom=null;document.getElementById('customDialog').close()}));
 document.getElementById('detailAddBtn').onclick=()=>{if(selectedPlace)openAddDialog({type:'place',id:selectedPlace.id})};
@@ -941,6 +1011,7 @@ document.querySelectorAll('[data-place-filter]').forEach(btn=>btn.onclick=()=>{
   placeFilter=btn.dataset.placeFilter;renderLibraryTabs();renderLibrary();
 });
 document.getElementById('placeSearch').addEventListener('input',e=>{placeSearch=e.target.value;renderLibrary()});
+document.getElementById('aiRecommendBtn').onclick=applyRecommendedItinerary;
 document.getElementById('jsonSaveBtn').onclick=saveJson;
 document.getElementById('jsonBackupBtn').onclick=()=>{exportJsonBackup();document.querySelector('.data-menu').open=false;};
 document.getElementById('jsonImportBtn').onclick=()=>document.getElementById('jsonImportFile').click();
@@ -954,9 +1025,9 @@ document.getElementById('jsonImportFile').addEventListener('change',async e=>{
 window.addEventListener('beforeunload',e=>{if(!dirty)return;e.preventDefault();e.returnValue=''});
 window.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveJson()}});
 
-renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus('공유 일정 연결 중','neutral');
+renderLibraryTabs();renderLibrary();renderBoard();setJsonStatus('추천 일정 준비 중','neutral');
 
-// 공유 일정: 수정 중에는 자동 덮어쓰지 않습니다.
-loadShared();
+// Keep the checked-in plan visible while Google Sheets validates the latest state.
+bootstrapTrip();
 // 변경 사항은 최초 접속과 명시적인 저장 검증 시에만 조회합니다.
 // 다른 브라우저의 변경 내용은 페이지를 새로고침하면 불러옵니다.
