@@ -36,7 +36,28 @@
     superpotato:[34.661,135.505,"Super Potato Otaroad Osaka"],
     gametanteidan:[34.656,135.506,"Game Tanteidan Nipponbashi Osaka"],
     preyzmain:[34.663,135.507,"Preyz Osaka Nipponbashi"],
-    preyzotaro:[34.661,135.505,"Preyz Nipponbashi Otaroad Osaka"]
+    preyzotaro:[34.661,135.505,"Preyz Nipponbashi Otaroad Osaka"],
+    "nishiki":[35.005,135.765,"Nishiki Market Kyoto"],
+    "surugayakyoto":[35.004,135.768,"Surugaya Kyoto Teramachi Store"],
+    "ninkyoto-photo":[35.003,135.769,"Nintendo KYOTO T8 Rooftop"],
+    "kiyomizudera":[34.995,135.785,"Kiyomizu-dera Kyoto"],
+    "ninenzaka":[34.998,135.781,"Ninenzaka Kyoto"],
+    "yasaka":[35.003,135.779,"Yasaka-jinja Shrine Gion Kyoto"],
+    "fushimiinari":[34.967,135.772,"Fushimi Inari Taisha Kyoto"],
+    "kyotomanga":[35.011,135.759,"Kyoto International Manga Museum"],
+    "byodoin":[34.889,135.808,"Byodoin Temple Uji"],
+    "ujitea":[34.891,135.807,"Byodoin Omotesando Uji"],
+    "teamlabkyoto":[34.98,135.766,"teamLab Biovortex Kyoto"],
+    "nijocastle":[35.015,135.748,"Nijo Castle Kyoto"],
+    "arashiyama":[35.017,135.671,"Arashiyama Bamboo Grove Kyoto"],
+    "kyotorailway":[34.988,135.743,"Kyoto Railway Museum"],
+    "toji":[34.98,135.747,"Toji Temple Kyoto"],
+    "toeistudio":[35.016,135.708,"Toei Kyoto Studio Park"],
+    "nintendo-hq":[34.969,135.756,"Nintendo Headquarters Kyoto"],
+    "kuromon":[34.665,135.506,"Kuromon Ichiba Market Osaka"],
+    "umedasky":[34.705,135.49,"Umeda Sky Building Osaka"],
+    "capcomumeda":[34.702,135.496,"Capcom Store Cafe Umeda LUCUA SOUTH"],
+    "squareenix":[34.702,135.496,"Square Enix Nexus LUCUA SOUTH"]
   };
   const fixedTypes = new Set(["airport","transport","hotel"]);
   const esc = value => String(value === undefined || value === null ? "" : value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
