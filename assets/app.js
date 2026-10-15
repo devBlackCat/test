@@ -309,6 +309,10 @@ let pendingAdd=null;
 let editingCustom=null;
 let lastRemoved=null;
 let draggedSchedule=null;
+// UI preferences are local to the browser and are not part of shared schedule JSON.
+let activeMobileDay='13',mobileEditing=false,selectedScheduleUid=null,selectedScheduleDay='13',compactMode=false;
+try{compactMode=localStorage.getItem('trip-density-v1')==='compact'}catch{}
+document.body.classList.toggle('compact-mode',compactMode);
 
 function blankPlan(){return {'12':[],'13':[],'14':[],'15':[],'16':[]}}
 function ensureState(){
@@ -764,11 +768,8 @@ function minutes(v){if(!v||!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v))return null;co
 function itemArea(item){if(item.placeId)return regionKey(placeById(item.placeId));if(item.routeId)return routeById(item.routeId)?.areaKey||null;return null}
 function itemPlaceId(item){return item.placeId||null}
 function renderMovement(prev,curr){
-  const a=itemArea(prev),b=itemArea(curr);if(!a||!b)return '';
-  const same=a===b;const sameBld=sameBuilding(itemPlaceId(prev),itemPlaceId(curr));
-  if(sameBld)return '<div class="movement-hint same">↳ 같은 건물 · 이동 거의 없음</div>';
-  if(same)return `<div class="movement-hint same">↳ ${escapeHtml(areaLabel(a))} 안에서 이어보기</div>`;
-  return `<div class="movement-hint move">↓ ${escapeHtml(areaLabel(a))} → ${escapeHtml(areaLabel(b))} · 이동 필요</div>`;
+  // Geographic distance rows are rendered only for known pairs by route-analysis.js.
+  return '';
 }
 function timingWarnings(items,index){
   const curr=items[index],warnings=[];
@@ -1011,6 +1012,10 @@ document.querySelectorAll('[data-place-filter]').forEach(btn=>btn.onclick=()=>{
   placeFilter=btn.dataset.placeFilter;renderLibraryTabs();renderLibrary();
 });
 document.getElementById('placeSearch').addEventListener('input',e=>{placeSearch=e.target.value;renderLibrary()});
+document.getElementById('densityToggle').onclick=()=>applyUiDensity(!compactMode);
+document.getElementById('mobileEditToggle').onclick=toggleMobileEditing;
+document.getElementById('mobileLibraryToggle').onclick=toggleMobileLibrary;
+applyUiDensity(compactMode);
 document.getElementById('aiRecommendBtn').onclick=applyRecommendedItinerary;
 document.getElementById('jsonSaveBtn').onclick=saveJson;
 document.getElementById('jsonBackupBtn').onclick=()=>{exportJsonBackup();document.querySelector('.data-menu').open=false;};
