@@ -18,7 +18,7 @@
 .panel-title-row h2{font-size:19px;letter-spacing:-.02em}.panel-title-row p{font-size:12px;line-height:1.5;margin-top:5px}
 
 .library-list{padding-right:5px;margin-top:12px}
-.major-region-section,.major-region-head{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 8px}.major-region-head strong{font-size:14px;color:#202938}.major-region-head span{font-size:10px;color:#98a2b3;font-weight:800}
+.major-region-section{display:block;padding:2px 2px 8px}.major-region-head{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 8px}.major-region-head strong{font-size:14px;color:#202938}.major-region-head span{font-size:10px;color:#98a2b3;font-weight:800}
 .region-group{margin-bottom:9px;border-radius:14px}.region-group summary{font-size:12px;padding:10px 12px}.region-group summary b{font-size:9px;padding:3px 7px}.region-group-body{padding:0 7px 7px}
 .place-card{padding:9px;margin-bottom:7px;border-radius:14px}.place-card-main{grid-template-columns:54px 1fr auto;gap:10px}.place-thumb{width:54px;height:54px;border-radius:11px}.place-title{font-size:13px;line-height:1.3}.place-meta{font-size:10px;gap:5px;margin-top:4px}.place-option-note{margin-top:6px;padding:6px 8px;border-radius:8px;background:#f5f2ff;color:#6d4cc4;font-size:9.5px;line-height:1.45;font-weight:700}.mini-badge{font-size:9px;padding:2px 6px}.mini-badge.transport{background:#edf6ff;color:#2d6d9f}.add-mini{width:32px;height:32px;font-size:18px}
 .inline-requirement{grid-template-columns:18px 1fr auto;gap:8px;padding:8px 9px;margin-top:8px}.inline-check{width:17px;height:17px}.inline-requirement-copy strong{font-size:10px}.inline-requirement-copy small{font-size:9px;line-height:1.45}.inline-requirement-state{font-size:8.5px;padding:4px 6px}
@@ -57,10 +57,7 @@
 .vote-btn.selected.down{background:#fcecec;border-color:#e58a8a;color:#aa3434}
 #detailVote .place-vote{margin:12px 0}
 
-/* Front-end rendering optimization: defer off-screen place card layout/paint. */
-@supports (content-visibility:auto){
-  .place-card{content-visibility:auto;contain-intrinsic-size:auto 140px}
-}
+/* Render cards at their real height to avoid scroll jumps while scrolling. */
 
 /* Show a short venue explanation beneath the title without expanding the entire list. */
 .place-description{margin-top:4px;color:#657287;font-size:10.5px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
