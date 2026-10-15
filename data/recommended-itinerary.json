@@ -1,0 +1,294 @@
+{
+  "format": "nintendo-kansai-trip-planner",
+  "version": 15,
+  "state": {
+    "activePlan": "use12",
+    "recommendationId": "kyoto-osaka-2027-05-optimized-v1",
+    "plans": {
+      "use12": {
+        "12": [
+          {
+            "uid": "rec_12_kix",
+            "placeId": "kix",
+            "start": "",
+            "end": "",
+            "memo": "12일 밤 도착 항공편 기준. 비행기 도착·입국 시각 확정 후 조정."
+          },
+          {
+            "uid": "rec_12_firstcabin",
+            "placeId": "firstcabin",
+            "start": "",
+            "end": "",
+            "memo": "간사이공항 Aeroplaza 직결. 12일 밤 체크인·숙박, 13일 오전 교토로 출발."
+          }
+        ],
+        "13": [
+          {
+            "uid": "rec_13_haruka",
+            "placeId": "haruka",
+            "start": "07:30",
+            "end": "08:50",
+            "memo": "KIX→교토역 직행. 신오사카는 경유하지 않음. 출발시간은 실제 시간표에 맞게 수정."
+          },
+          {
+            "uid": "rec_13_kyotohotel",
+            "placeId": "kyotohotel",
+            "start": "09:00",
+            "end": "09:35",
+            "memo": "교토역권 숙소에 짐 보관. 예약한 호텔의 수하물 보관 가능 여부 확인."
+          },
+          {
+            "uid": "rec_13_museum",
+            "placeId": "museum",
+            "start": "10:45",
+            "end": "14:15",
+            "memo": "최우선 예약: 5/13 오전 시간대 티켓 확보를 가정한 임시 시간. 실제 입장권에 맞게 우지 후속 일정 조정."
+          },
+          {
+            "uid": "rec_13_byodoin",
+            "placeId": "byodoin",
+            "start": "15:05",
+            "end": "15:55",
+            "memo": "Nintendo Museum(오구라)에서 우지 시내로 별도 이동. 봉황당 경내·정원 간단 관람."
+          },
+          {
+            "uid": "rec_13_ujitea",
+            "placeId": "ujitea",
+            "start": "15:55",
+            "end": "16:30",
+            "memo": "뵤도인 오모테산도에서 우지차·말차 간식. 뵤도인과 같은 생활권."
+          },
+          {
+            "uid": "rec_13_fushimiinari",
+            "placeId": "fushimiinari",
+            "start": "17:10",
+            "end": "18:25",
+            "memo": "우지→JR 이나리역 방향 북상. 천본도리이 중심 짧은 산책, 산 정상 등산 제외."
+          },
+          {
+            "uid": "rec_13_marufukuro",
+            "placeId": "marufukuro",
+            "start": "19:05",
+            "end": "19:30",
+            "memo": "후시미이나리에서 시치조 방면으로 이동해 옛 닌텐도 본사 호텔 외관만 촬영."
+          },
+          {
+            "uid": "rec_13_custom_1",
+            "title": "교토역 주변 저녁·숙소 복귀",
+            "start": "19:45",
+            "end": "20:45",
+            "memo": "교토역권 식사·휴식. 다음 날 아침 기요미즈데라 방문."
+          }
+        ],
+        "14": [
+          {
+            "uid": "rec_14_kiyomizudera",
+            "placeId": "kiyomizudera",
+            "start": "08:00",
+            "end": "09:15",
+            "memo": "오전에 히가시야마 진입. 기요미즈데라에서 내려오는 방향으로 관광."
+          },
+          {
+            "uid": "rec_14_ninenzaka",
+            "placeId": "ninenzaka",
+            "start": "09:15",
+            "end": "10:00",
+            "memo": "산넨자카·니넨자카 골목 사진과 간식. 기요미즈데라 도보 연계."
+          },
+          {
+            "uid": "rec_14_yasaka",
+            "placeId": "yasaka",
+            "start": "10:15",
+            "end": "10:50",
+            "memo": "기온·야사카 신사 경내 산책 후 서쪽 가와라마치로 이동."
+          },
+          {
+            "uid": "rec_14_ninkyoto",
+            "placeId": "ninkyoto",
+            "start": "11:10",
+            "end": "12:10",
+            "memo": "다카시마야 T8 7F 공식 Nintendo KYOTO 굿즈 쇼핑. 개점·입장 대기 확인."
+          },
+          {
+            "uid": "rec_14_ninkyoto-photo",
+            "placeId": "ninkyoto-photo",
+            "start": "12:10",
+            "end": "12:25",
+            "memo": "Nintendo KYOTO와 같은 건물 1F/옥상 마리오 사진. 이동시간 거의 없음."
+          },
+          {
+            "uid": "rec_14_nishiki",
+            "placeId": "nishiki",
+            "start": "12:35",
+            "end": "13:20",
+            "memo": "니시키 시장 점심·간식. 상점별 취식 규칙 준수."
+          },
+          {
+            "uid": "rec_14_surugayakyoto",
+            "placeId": "surugayakyoto",
+            "start": "13:25",
+            "end": "13:55",
+            "memo": "테라마치 레트로게임·중고 소프트. 니시키 시장 도보권."
+          },
+          {
+            "uid": "rec_14_pkmkyoto",
+            "placeId": "pkmkyoto",
+            "start": "14:25",
+            "end": "15:15",
+            "memo": "시조카라스마 SUINA MUROMACHI 2F. Nintendo KYOTO와 다른 건물."
+          },
+          {
+            "uid": "rec_14_kyotomanga",
+            "placeId": "kyotomanga",
+            "start": "15:40",
+            "end": "16:35",
+            "memo": "가라스마오이케 국제만화박물관. 17시 폐관/16:30 최종입장 기준, 짧은 핵심 관람."
+          },
+          {
+            "uid": "rec_14_custom_1",
+            "title": "교토 숙소 짐 찾기 → 오사카역 이동",
+            "start": "16:45",
+            "end": "18:30",
+            "memo": "교토역에서 짐 회수 후 JR로 오사카역·우메다 이동. 퇴근 시간 혼잡 감안."
+          },
+          {
+            "uid": "rec_14_osakahotel",
+            "placeId": "osakahotel",
+            "start": "18:45",
+            "end": "19:20",
+            "memo": "오사카역·우메다 숙소 체크인. 14·15일 2박 가정."
+          }
+        ],
+        "15": [
+          {
+            "uid": "rec_15_usj",
+            "placeId": "usj",
+            "start": "08:00",
+            "end": "09:30",
+            "memo": "토요일 USJ 입장 및 닌텐도 구역 진입 준비. 실제 개장시간·Early Entry 정책에 맞춰 수정."
+          },
+          {
+            "uid": "rec_15_snw",
+            "placeId": "snw",
+            "start": "09:30",
+            "end": "18:30",
+            "memo": "SUPER NINTENDO WORLD 중심으로 파크 하루 사용. 별도 구역 시간지정 입장·Express Pass 조건 확인."
+          },
+          {
+            "uid": "rec_15_custom_1",
+            "title": "USJ 퇴장·유니버설시티 저녁 → 우메다 귀환",
+            "start": "18:30",
+            "end": "20:00",
+            "memo": "파크 체력·대기시간에 따라 조절. 15일 밤은 우메다 숙소 2박째."
+          }
+        ],
+        "16": [
+          {
+            "uid": "rec_16_custom_1",
+            "title": "체크아웃·오사카역 짐 보관",
+            "start": "09:00",
+            "end": "09:50",
+            "memo": "호텔 체크아웃, 우메다 쇼핑 중 짐 처리. 오후 난바 경유 후 KIX 출발."
+          },
+          {
+            "uid": "rec_16_ninosaka",
+            "placeId": "ninosaka",
+            "start": "10:00",
+            "end": "10:55",
+            "memo": "LUCUA SOUTH 13F Nintendo OSAKA. 최우선 필수 쇼핑."
+          },
+          {
+            "uid": "rec_16_pkmosaka",
+            "placeId": "pkmosaka",
+            "start": "11:00",
+            "end": "11:40",
+            "memo": "Nintendo OSAKA와 같은 층 Pokémon Center OSAKA."
+          },
+          {
+            "uid": "rec_16_capcomumeda",
+            "placeId": "capcomumeda",
+            "start": "11:40",
+            "end": "12:10",
+            "memo": "같은 층 CAPCOM STORE & CAFE. 관심 없으면 생략하고 남은 시간을 확보."
+          },
+          {
+            "uid": "rec_16_custom_2",
+            "title": "우메다 → 난바 이동·짐 보관·간단 점심",
+            "start": "12:10",
+            "end": "13:25",
+            "memo": "우메다 숙소/보관함 짐 회수 후 난바역 보관함 이용. 귀국은 난바→KIX 이동."
+          },
+          {
+            "uid": "rec_16_shinsaibashi",
+            "placeId": "shinsaibashi",
+            "start": "13:30",
+            "end": "14:10",
+            "memo": "신사이바시 다이마루 9F Pokémon Center OSAKA DX."
+          },
+          {
+            "uid": "rec_16_pokecafe",
+            "placeId": "pokecafe",
+            "start": "14:10",
+            "end": "15:20",
+            "memo": "포켓몬 카페 예약 성공을 전제로 한 임시 배치! 불가하면 DX·Kirby 매장 시간을 늘리고 앞당기기."
+          },
+          {
+            "uid": "rec_16_kirbystore",
+            "placeId": "kirbystore",
+            "start": "15:20",
+            "end": "15:45",
+            "memo": "다이마루 같은 층 Kirby Café THE STORE OSAKA."
+          },
+          {
+            "uid": "rec_16_superpotato",
+            "placeId": "superpotato",
+            "start": "16:05",
+            "end": "16:40",
+            "memo": "난바 남쪽 오타로드 Super Potato 레트로게임. 시간 부족하면 생략 가능."
+          },
+          {
+            "uid": "rec_16_kixreturn",
+            "placeId": "kixreturn",
+            "start": "17:05",
+            "end": "18:25",
+            "memo": "난바에서 짐 회수 후 난카이 전철로 KIX 이동 가정. 실제 항공편에 맞게 역산."
+          },
+          {
+            "uid": "rec_16_custom_3",
+            "title": "KIX 출국 수속·여유시간",
+            "start": "18:25",
+            "end": "20:30",
+            "memo": "귀국편 시간 미정. 이 안은 21시 이후 항공편에 여유 있게 대응하기 위한 예시; 이른 비행편이면 신사이바시 이후 일정부터 줄이기."
+          }
+        ]
+      }
+    },
+    "reservationDone": {},
+    "placeVotes": {}
+  },
+  "recommendation": {
+    "title": "2027년 5월 12일 밤 출발 · 교토 13~14일 · 오사카 14일 밤~16일",
+    "generatedAt": "2026-10-15",
+    "disclaimer": "모든 시간은 예약·항공편 확정 전 임시 가안. 실제 동선·영업·입장 정책 확인 후 수정",
+    "assumptions": [
+      "12일 밤 KIX 도착·First Cabin KIX 숙박(항공편 미정)",
+      "13일 Nintendo Museum 오전 입장권 확보를 가정; 실패하면 우지 주변 일정 재배치",
+      "14일 오후 교토 쇼핑 완료 후 18시대 오사카역·우메다 이동/숙박",
+      "15일 토요일 USJ 및 SUPER NINTENDO WORLD 하루; 구역 입장 조건 별도 확인",
+      "16일 오사카 우메다→신사이바시→난바→KIX로 이동; 21시 이후 귀국편 가정",
+      "16일 Pokémon Cafe 예약시간 미확정이며 불가하면 대체 쇼핑",
+      "교토 산토리 맥주공장은 일정에 넣지 않았으며 장소 목록에서는 유지",
+      "신오사카 에키벤·포켓몬 스탠드는 KIX→교토 직행 효율을 위해 기본 일정에서 생략"
+    ],
+    "not_booked": [
+      "museum",
+      "usj",
+      "snw",
+      "pokecafe",
+      "firstcabin",
+      "kyotohotel",
+      "osakahotel"
+    ],
+    "optional_places_remain_available": true
+  }
+}
