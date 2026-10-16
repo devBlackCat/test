@@ -98,3 +98,10 @@
   .trip-expense-numbers b{font-size:11px}
   .trip-budget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+/* Follow the existing mobile read/edit distinction for mutations. */
+@media(max-width:920px){
+  body:not(.mobile-editing) .trip-inspector-people .trip-person-option,
+  body:not(.mobile-editing) .trip-item-price,
+  body:not(.mobile-editing) .trip-prev-transit,
+  body:not(.mobile-editing) .trip-leg-fee{pointer-events:none;opacity:.62}
+}
