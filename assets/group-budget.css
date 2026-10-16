@@ -15,8 +15,8 @@
 .trip-avatar-stack{display:flex;align-items:center;padding-left:1px;min-width:0}
 .trip-avatar.trip-avatar-small{width:19px;height:19px;margin-left:-3px;border:2px solid white;box-sizing:border-box}
 .trip-avatar.trip-avatar-small:first-child{margin-left:0}
-.trip-attendee-count{font-size:9px;color:#8895a6;font-weight:700}
-.trip-split-count{color:#1e6aa8;font-weight:850}
+
+
 .trip-not-in-group{opacity:.46;background:#f8fafc!important}
 .trip-inspector-extension{grid-column:1/-1;display:grid;grid-template-columns:minmax(310px,1.3fr) minmax(290px,1fr);gap:14px;margin:10px 0 0;padding-top:10px;border-top:1px solid #edf0f4}
 .trip-inspector-people,.trip-expense-panel{min-width:0;display:grid;align-content:start;gap:7px}
