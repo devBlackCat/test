@@ -8,7 +8,8 @@
     console.warn("Trip group widgets: prerequisites unavailable");return;
   }
   const allIds=people.map(p=>p.id);
-  let focused=null;
+  let pickedPerson=null;
+  const expandedCards=new Set();
   const yen=n=>"¥"+Math.round(n||0).toLocaleString("ja-JP");
   const safe=v=>escapeHtml(String(v??""));
   const itemList=day=>currentSchedule()[day]||[];
@@ -18,7 +19,6 @@
   };
   const person=id=>people.find(p=>p.id===id);
   const avatar=(p,cls="")=>`<img class="trip-avatar ${cls}" src="${p.avatar}" alt="${safe(p.name)}" title="${safe(p.name)}" draggable="false">`;
-  const dayPart=(item,day)=>attendees(item).filter(id=>!focused||focused===id);
   const categoryNames={admission:"입장·체험",food:"식비",transport:"교통비",lodging:"숙박비",other:"기타"};
   const trimCurrency=(v)=>Number.isFinite(Number(v))&&Number(v)>=0&&Number(v)<=10000000?Math.round(Number(v)):null;
   const normalizePrice=(row)=>row&&Number.isInteger(row.yen)&&row.yen>=0?row:null;
@@ -89,126 +89,170 @@
     }
     return {amounts,total:Object.values(amounts).reduce((a,b)=>a+b,0),missing,confirmedCount};
   }
-  function cardParticipantHtml(item) {
-    const ids=attendees(item);
-    return `<button type="button" class="trip-attendees-strip" data-participant-item="${safe(item.uid)}" title="${safe(ids.map(id=>person(id)?.name).join(", ")||"참가자 미지정")} · 아래에서 편집" aria-label="${safe(ids.length)}명 참가, 참가자 편집">
-      <span class="trip-avatar-stack">${ids.map(id=>avatar(person(id),"trip-avatar-small")).join("")}</span>
-      ${ids.length===5?'<span class="trip-attendee-count">전원</span>':`<span class="trip-attendee-count trip-split-count">${ids.length}/5</span>`}
-    </button>`;
+  function cardParticipantHtml(item){
+  const assigned=Array.isArray(state.attendance?.[item.uid]);
+  const ids=attendees(item);
+  if(!assigned&&!expandedCards.has(item.uid)){
+    return `<button type="button" class="trip-attendees-default" data-expand-attendees="${safe(item.uid)}" title="전원 참여 · 누르면 5명 모두 표시하여 제외 가능">👥 전원 <span aria-hidden="true">▾</span></button>`;
   }
+  return `<div class="trip-attendees-strip" aria-label="${safe(ids.length)}명 참여">
+    <span class="trip-avatar-stack">${ids.map(id=>{
+      const p=person(id);
+      return `<button type="button" class="trip-card-person" data-remove-attendee="${safe(id)}" title="${safe(p.name)} 제외 · 끌어서 상단으로 돌려놓기" aria-label="${safe(p.name)} 참가 취소" draggable="true">${avatar(p,"trip-avatar-small")}</button>`;
+    }).join("")}</span>
+    <span class="trip-attendee-count">${assigned?`${ids.length}/5`:"전원"}</span>
+    ${assigned?`<button type="button" class="trip-reset-all" data-reset-attendees="${safe(item.uid)}" title="5명 전원 참여로 초기화">전원 복구</button>`:""}
+    ${ids.length===0?'<span class="trip-attendee-empty">참가자 없음</span>':""}
+  </div>`;
+}
+
   function renderTopBar(){
-    const root=document.getElementById("participantToolbar");
-    if(!root)return;
-    root.innerHTML=`<span class="trip-members-label">참가자</span>${people.map(p=>`<button class="trip-top-person ${focused===p.id?"active":""}" type="button" data-focus-person="${p.id}" aria-pressed="${focused===p.id}" title="${safe(p.name)} · 일정 참여 여부 강조">${avatar(p)}</button>`).join("")}`;
-    root.querySelectorAll("[data-focus-person]").forEach(btn=>btn.addEventListener("click",()=>{
-      focused=focused===btn.dataset.focusPerson?null:btn.dataset.focusPerson;
-      renderTopBar();renderBoard();
-    }));
+  const root=document.getElementById("participantToolbar");
+  if(!root)return;
+  root.innerHTML=`<span class="trip-members-label">일정에 넣기 →</span>${people.map(p=>`<button class="trip-top-person ${pickedPerson===p.id?"active":""}" type="button" draggable="true" data-pick-person="${p.id}" aria-pressed="${pickedPerson===p.id}" title="${safe(p.name)} · 일정으로 드래그하거나 클릭 후 일정 선택">${avatar(p)}</button>`).join("")}`;
+  root.querySelectorAll("[data-pick-person]").forEach(btn=>{
+    btn.addEventListener("dragstart",event=>{
+      pickedPerson=null;
+      event.dataTransfer.setData("text/person",btn.dataset.pickPerson);
+      event.dataTransfer.effectAllowed="copy";
+    });
+    btn.addEventListener("click",()=>{
+      pickedPerson=pickedPerson===btn.dataset.pickPerson?null:btn.dataset.pickPerson;
+      renderTopBar();
+    });
+  });
+  root.addEventListener("dragover",onTopDragOver);
+  root.addEventListener("drop",onTopDrop);
+  updateBudgetTop();
+}
+
+  function onTopDragOver(event){
+  if(event.dataTransfer.types.includes("text/remove-person")){
+    event.preventDefault();event.dataTransfer.dropEffect="move";
   }
+}
+
+  function onTopDrop(event){
+  const raw=event.dataTransfer.getData("text/remove-person");
+  if(!raw)return;
+  event.preventDefault();event.stopPropagation();
+  const [day,uid,id]=raw.split("|"),item=itemList(day).find(it=>it.uid===uid);
+  if(item&&allIds.includes(id))removeParticipant(item,id);
+}
+
+  function updateBudgetTop(){
+  const btn=document.getElementById("tripBudgetBtn");if(!btn)return;
+  const sum=summary(activeDays());
+  btn.textContent=`예상 합계 ${yen(sum.total)}${sum.missing?` · 미확정 ${sum.missing}`:""}`;
+  btn.title="5명 합계 · 일부 교통·숙박·항공비는 아직 미확정. 누르면 세부 금액과 일정별 금액 편집";
+}
+
+  function assignParticipant(item,id){
+  if(!item||!allIds.includes(id))return;
+  const assigned=Array.isArray(state.attendance?.[item.uid]);
+  const ids=assigned?attendees(item):[];
+  if(ids.includes(id)){toast(`${person(id).name}은 이미 참가 중입니다.`);return}
+  const next=allIds.filter(v=>ids.includes(v)||v===id);
+  if(next.length===5)delete state.attendance[item.uid];
+  else state.attendance[item.uid]=next;
+  expandedCards.delete(item.uid);
+  persist();renderBoard();toast(`${person(id).name} 참가자를 반영했습니다.`);
+}
+
+  function removeParticipant(item,id){
+  if(!item||!allIds.includes(id))return;
+  const next=attendees(item).filter(member=>member!==id);
+  state.attendance[item.uid]=next;
+  expandedCards.delete(item.uid);
+  persist();renderBoard();toast(`${person(id).name}을(를) 이 일정에서 제외했습니다.`);
+}
+
+  function resetAll(item){
+  if(!item)return;
+  delete state.attendance[item.uid];
+  expandedCards.delete(item.uid);
+  persist();renderBoard();toast("5명 전원 참가로 복구했습니다.");
+}
+
   function syncCardAvatars(){
-    document.querySelectorAll(".schedule-card[data-item]").forEach(card=>{
-      const item=itemList(card.dataset.day).find(it=>it.uid===card.dataset.item);
-      if(!item)return;
-      card.classList.toggle("trip-not-in-group",!!focused&&!attendees(item).includes(focused));
-      const copy=card.querySelector(".schedule-card-copy");if(!copy)return;
-      copy.insertAdjacentHTML("beforeend",cardParticipantHtml(item));
-      copy.querySelector("[data-participant-item]")?.addEventListener("click",event=>{
-        event.stopPropagation();card.click();
+  document.querySelectorAll(".schedule-card[data-item]").forEach(card=>{
+    const item=itemList(card.dataset.day).find(it=>it.uid===card.dataset.item);
+    if(!item)return;
+    const copy=card.querySelector(".schedule-card-copy");if(!copy)return;
+    copy.insertAdjacentHTML("beforeend",cardParticipantHtml(item));
+    const participants=copy.querySelector(".trip-attendees-strip");
+    copy.querySelector("[data-expand-attendees]")?.addEventListener("click",event=>{
+      event.stopPropagation();expandedCards.add(item.uid);renderBoard();
+    });
+    participants?.querySelectorAll("[data-remove-attendee]").forEach(btn=>{
+      btn.addEventListener("click",event=>{
+        event.stopPropagation();removeParticipant(item,btn.dataset.removeAttendee);
+      });
+      btn.addEventListener("dragstart",event=>{
+        event.stopPropagation();
+        event.dataTransfer.setData("text/remove-person",`${card.dataset.day}|${item.uid}|${btn.dataset.removeAttendee}`);
+        event.dataTransfer.effectAllowed="move";
       });
     });
-    // Use existing distance hints as optional entry points for per-segment cost.
-    document.querySelectorAll(".day-column").forEach(column=>{
-      const day=column.dataset.day,cards=[...column.querySelectorAll(".schedule-card[data-item]")];
-      cards.forEach((card,i)=>{
-        if(i===0)return;
-        const hint=card.previousElementSibling;
-        if(!hint?.classList.contains("movement-hint")||hint.classList.contains("route-leg-choice"))return;
-        const left=cards[i-1].dataset.item,right=card.dataset.item;
-        const key=legKey(day,left,right),existing=state.transportOverrides?.[key];
-        const button=document.createElement("button");
-        button.type="button";button.className="trip-leg-fee";
-        button.textContent=existing?`🚆 ${existing.mode==="walk"?"도보":existing.mode==="taxi"?"택시":existing.mode==="bus"?"버스":"교통"} ${yen(existing.yen)}${existing.type==="per_person"?"/인":"/전체"}`:"＋ 교통비";
-        button.title="이 구간의 교통수단과 예상 요금을 설정";
-        button.addEventListener("click",()=>editLeg(day,left,right));
-        hint.appendChild(button);
-      });
+    participants?.querySelector("[data-reset-attendees]")?.addEventListener("click",event=>{
+      event.stopPropagation();resetAll(item);
     });
-  }
-  function setParticipant(item,id) {
-    const cur=attendees(item);
-    const next=cur.includes(id)?cur.filter(p=>p!==id):allIds.filter(p=>cur.includes(p)||p===id);
-    if(next.length===5)delete state.attendance[item.uid];
-    else state.attendance[item.uid]=next;
-    persist();renderBoard();
-  }
-  function renderInspectorExtra(){
-    const root=document.getElementById("dayInspector");if(!root)return;
-    root.querySelector(".trip-inspector-extension")?.remove();
-    const selection=getSelectedItem(),day=selection?.day||activeMobileDay;
-    const current=selection?.item;
-    const calc=summary([day],focused);
-    const selectedIds=current?attendees(current):[];
-    const price=current?priceFor(current):null;
-    const allDay=summary([day]);
-    const wrap=document.createElement("section");wrap.className="trip-inspector-extension";
-    wrap.innerHTML=`${current?`<div class="trip-inspector-people">
-      <div class="trip-block-heading"><strong>참가자</strong><small>기본 전원 참여 · 클릭해 제외/추가</small></div>
-      <div class="trip-person-picker">${people.map(p=>`<button type="button" data-toggle-person="${p.id}" class="trip-person-option ${selectedIds.includes(p.id)?"selected":""}" aria-pressed="${selectedIds.includes(p.id)}">${avatar(p)}<span>${safe(p.name)}</span><b>${selectedIds.includes(p.id)?"✓":"−"}</b></button>`).join("")}</div>
-      </div>`:""}
-      <div class="trip-expense-panel">
-        <div class="trip-block-heading"><strong>${focused?safe(person(focused)?.name)+" · ":""}5/${day} 예상 경비</strong><button type="button" data-open-budget>전체 비용 보기 ↗</button></div>
-        <div class="trip-expense-numbers">
-          <span><small>합계 (확인된 항목)</small><b>${yen(calc.total)}</b></span>
-          <span><small>교통비</small><b>${yen(calc.amounts.transport)}</b></span>
-          <span><small>미확정 일정</small><b>${calc.missing}개</b></span>
-        </div>
-        ${focused?`<small class="trip-expense-note">전체 5명 합계 ${yen(allDay.total)} · 아이콘을 다시 누르면 전체 보기</small>`:""}
-        ${current?`<div class="trip-item-price">
-          <label for="tripItemPrice">이 일정 1인 예상비용 (엔)</label>
-          <select id="tripItemCostCategory" aria-label="비용 유형">${Object.entries(categoryNames).map(([key,value])=>`<option value="${key}" ${key===(price?.category||"other")?"selected":""}>${value}</option>`).join("")}</select>
-          <input id="tripItemPrice" type="number" min="0" max="10000000" step="1" placeholder="요금 미확인" value="${price?.yen??""}">
-          <button type="button" id="tripPriceApply">적용</button>
-          <button type="button" id="tripPriceReset" ${state.budgetOverrides?.[current.uid]?"":"disabled"}>기본값</button>
-        </div>
-        <small class="trip-expense-note">${safe(price?.note||"기본 요금 미확인 · 입장료와 식비 등 직접 설정 가능")}${price?.source?` · <a href="${safe(price.source)}" target="_blank" rel="noopener">출처 ↗</a>`:""}</small>`:"<small class=\"trip-expense-note\">날짜별 합계에는 확인된 비용만 포함되며, 항공·숙박·미지정 구간은 추가 확인이 필요합니다.</small>"}
-      </div>`;
-    root.appendChild(wrap);
-    wrap.querySelectorAll("[data-toggle-person]").forEach(btn=>btn.addEventListener("click",()=>setParticipant(current,btn.dataset.togglePerson)));
-    wrap.querySelector("[data-open-budget]")?.addEventListener("click",openBudget);
-    wrap.querySelector("#tripPriceApply")?.addEventListener("click",()=>{
-      if(!current)return;
-      const inp=wrap.querySelector("#tripItemPrice"),value=trimCurrency(inp.value);
-      if(inp.value===""||value===null){toast("금액을 0 이상 정수로 입력하세요. 모르는 경우 기본값을 유지하세요.");return}
-      const cat=wrap.querySelector("#tripItemCostCategory").value;
-      state.budgetOverrides[current.uid]={yen:value,category:cat};
-      persist();renderBoard();toast("1인 예상비용을 반영했습니다.");
+    // An avatar from the header can be dropped anywhere on the card, including the photo.
+    card.addEventListener("dragover",event=>{
+      if(!event.dataTransfer.types.includes("text/person"))return;
+      event.preventDefault();event.stopPropagation();
+      event.dataTransfer.dropEffect="copy";
+      card.classList.add("trip-drop-person");
     });
-    wrap.querySelector("#tripPriceReset")?.addEventListener("click",()=>{
-      if(!current)return;
-      delete state.budgetOverrides[current.uid];persist();renderBoard();
+    card.addEventListener("dragleave",event=>{
+      if(!card.contains(event.relatedTarget))card.classList.remove("trip-drop-person");
     });
-    if(current){
-      const index=itemList(day).findIndex(it=>it.uid===current.uid);
-      if(index>0){
-        const btn=document.createElement("button");btn.type="button";btn.className="trip-prev-transit";
-        btn.textContent="↗ 이전 일정에서 이곳까지 교통비 설정";
-        btn.addEventListener("click",()=>editLeg(day,itemList(day)[index-1].uid,current.uid));
-        wrap.querySelector(".trip-expense-panel")?.appendChild(btn);
-      }
-    }
-  }
+    card.addEventListener("drop",event=>{
+      const id=event.dataTransfer.getData("text/person");
+      if(!allIds.includes(id))return;
+      event.preventDefault();event.stopPropagation();
+      card.classList.remove("trip-drop-person");
+      assignParticipant(item,id);
+    });
+    // Touch/keyboard alternative to drag: tap a header portrait, then a card.
+    card.addEventListener("click",event=>{
+      if(!pickedPerson||event.target.closest("button,input,label,a,summary"))return;
+      event.preventDefault();event.stopImmediatePropagation();
+      const id=pickedPerson;pickedPerson=null;
+      assignParticipant(item,id);renderTopBar();
+    },true);
+  });
+  document.querySelectorAll(".day-column").forEach(column=>{
+    const day=column.dataset.day,cards=[...column.querySelectorAll(".schedule-card[data-item]")];
+    cards.forEach((card,i)=>{
+      if(i===0)return;
+      const hint=card.previousElementSibling;
+      if(!hint?.classList.contains("movement-hint")||hint.classList.contains("route-leg-choice"))return;
+      const left=cards[i-1].dataset.item,right=card.dataset.item;
+      const key=legKey(day,left,right),existing=state.transportOverrides?.[key];
+      const button=document.createElement("button");
+      button.type="button";button.className="trip-leg-fee";
+      button.textContent=existing?`🚆 ${existing.mode==="walk"?"도보":existing.mode==="taxi"?"택시":existing.mode==="bus"?"버스":"교통"} ${yen(existing.yen)}${existing.type==="per_person"?"/인":"/전체"}`:"＋ 교통비";
+      button.title="이 구간의 교통수단과 예상 요금을 설정";
+      button.addEventListener("click",()=>editLeg(day,left,right));
+      hint.appendChild(button);
+    });
+  });
+  updateBudgetTop();
+}
+
   function openBudget(){
     let dlg=document.getElementById("tripBudgetDialog");
     if(!dlg){dlg=document.createElement("dialog");dlg.id="tripBudgetDialog";dlg.className="dialog trip-dialog";document.body.appendChild(dlg)}
-    const days=activeDays(),peopleToShow=focused?[person(focused)]:people;
-    const each=summary(days,focused);
+    const days=activeDays();
+    const each=summary(days);
     dlg.innerHTML=`<div class="trip-modal-content">
       <div class="trip-modal-head"><h2>여행 예상 경비</h2><button type="button" aria-label="닫기" data-close-budget>×</button></div>
       <p class="trip-modal-note">JPY 기준 · 현재 조사 가격과 예산 가정의 합계입니다. <strong>항공·미확정 숙박·일부 교통비는 빠져 있습니다.</strong></p>
-      <div class="trip-modal-total"><small>${focused?safe(person(focused)?.name):"5명 전체"} · 확인/가정된 비용</small><strong>${yen(each.total)}</strong><small>미확정 일정 ${each.missing}건</small></div>
+      <div class="trip-modal-total"><small>5명 전체 · 확인/가정된 비용</small><strong>${yen(each.total)}</strong><small>미확정 일정 ${each.missing}건</small></div>
       <div class="trip-budget-grid">${Object.entries(categoryNames).map(([key,name])=>`<div><span>${name}</span><b>${yen(each.amounts[key])}</b></div>`).join("")}</div>
       <h3>날짜별 비용</h3>
-      <div class="trip-budget-days">${days.map(day=>{const sum=summary([day],focused);return `<div><span>5/${day}</span><b>${yen(sum.total)}</b><small>${sum.missing?sum.missing+"건 미확정":"확인값만 반영"}</small></div>`}).join("")}</div>
+      <div class="trip-budget-days">${days.map(day=>{const sum=summary([day]);return `<div><span>5/${day}</span><b>${yen(sum.total)}</b><small>${sum.missing?sum.missing+"건 미확정":"확인값만 반영"}</small></div>`}).join("")}</div>
       <h3>5명 개인별 계산</h3>
       <div class="trip-budget-people">${people.map(p=>{const s=summary(days,p.id);return `<div>${avatar(p)}<span>${safe(p.name)}</span><b>${yen(s.total)}</b></div>`}).join("")}</div>
       <p class="trip-modal-note">USJ 임시 예산 ¥10,500은 <strong>실제 날짜별 티켓 가격이 아닙니다.</strong> 2027년 5월 방문 전 재확인해야 합니다. 입장료·교통비 기본값의 출처는 <a href="https://museum.nintendo.com/en/guide/index.html" target="_blank" rel="noopener">Nintendo Museum</a>, <a href="https://www.westjr.co.jp/travel-information/kr/tickets-passes/oneway/haruka/" target="_blank" rel="noopener">JR 서일본</a> 등입니다.</p>
@@ -257,8 +301,6 @@
     });
     if(!dlg.open)dlg.showModal();
   }
-  const baseInspector=renderDayInspector;
-  renderDayInspector=function(){baseInspector();renderInspectorExtra()};
   const baseBoard=renderBoard;
   renderBoard=function(){baseBoard();syncCardAvatars()};
   document.getElementById("tripBudgetBtn")?.addEventListener("click",openBudget);
