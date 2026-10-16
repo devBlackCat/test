@@ -97,7 +97,6 @@
         const p=person(id);
         return `<button type="button" class="trip-card-person" data-remove-attendee="${safe(id)}" title="${safe(p.name)} 제외 · 클릭하거나 다른 곳에 끌어놓기" aria-label="${safe(p.name)} 참가 취소" draggable="true">${avatar(p,"trip-avatar-small")}</button>`;
       }).join("")}</span>
-      <span class="trip-attendee-count">${ids.length===allIds.length?"전원":`${ids.length}/${allIds.length}`}</span>
     </div>`;
   }
 
