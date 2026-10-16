@@ -938,8 +938,8 @@ function renderScheduleCard(item,day,warnings=[]) {
       <span class="drag-handle" title="드래그하여 순서 이동" aria-hidden="true">⠿</span>
       ${scheduleThumbnail(place,icon)}
       <div class="schedule-card-copy">
-        <div class="schedule-card-title-line"><div class="card-title">${escapeHtml(title)}</div>${bookingTag(place,day)}</div>
-        <div class="schedule-card-subline"><span class="card-time-readout">${scheduleTimeLabel(item)}</span>${item.memo?'<span class="memo-indicator" title="하단에서 메모 확인·수정">✎ 메모</span>':''}</div>
+        <div class="schedule-card-title-line"><div class="card-title">${escapeHtml(title)}</div></div>
+        <div class="schedule-card-subline"><span class="card-time-readout">${scheduleTimeLabel(item)}</span>${bookingTag(place,day)}${item.memo?'<span class="memo-indicator" title="하단에서 메모 확인·수정">✎ 메모</span>':''}</div>
       </div>
       <div class="card-actions">${place?`<button class="card-icon detail-btn" type="button" data-place="${escapeHtml(place.id)}" title="장소 정보" aria-label="${escapeHtml(title)} 장소 상세">ⓘ</button>`:''}<button class="card-icon remove-btn" type="button" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="일정에서 제거" aria-label="${escapeHtml(title)} 삭제">×</button></div>
     </div>
@@ -958,8 +958,8 @@ function renderRouteScheduleCard(item,day,warnings=[]) {
       <span class="drag-handle" title="드래그하여 순서 이동" aria-hidden="true">⠿</span>
       ${scheduleThumbnail(representative,'📌')}
       <div class="schedule-card-copy">
-        <div class="schedule-card-title-line"><div class="card-title">${escapeHtml(group.title)}</div>${routeBookingTag(item,day)}</div>
-        <div class="schedule-card-subline"><span class="card-time-readout">${scheduleTimeLabel(item)}</span><span class="route-member-count">${members.length}곳</span>${item.memo?'<span class="memo-indicator">✎ 메모</span>':''}</div>
+        <div class="schedule-card-title-line"><div class="card-title">${escapeHtml(group.title)}</div></div>
+        <div class="schedule-card-subline"><span class="card-time-readout">${scheduleTimeLabel(item)}</span>${routeBookingTag(item,day)}<span class="route-member-count">${members.length}곳</span>${item.memo?'<span class="memo-indicator">✎ 메모</span>':''}</div>
         <div class="route-schedule-members" title="${escapeHtml(members.map(p=>p.title).join(' · '))}"><span class="route-member-preview">${escapeHtml(preview)}${members.length>2?' 외 '+(members.length-2)+'곳':''}</span></div>
       </div>
       <div class="card-actions"><button class="card-icon remove-btn" type="button" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="묶음 제거" aria-label="${escapeHtml(group.title)} 삭제">×</button></div>
