@@ -263,7 +263,10 @@ let state = {
   recommendationId:'',
   plans:{use12:{'12':[],'13':[],'14':[],'15':[],'16':[]}},
   reservationDone:{},
-  placeVotes:{}
+  placeVotes:{},
+  attendance:{},
+  budgetOverrides:{},
+  transportOverrides:{}
 };
 ensureState();
 function migrateLegacyRoutes(){
@@ -329,6 +332,9 @@ function ensureState(){
   state.recommendationId=typeof state.recommendationId==='string'?state.recommendationId:'';
   state.reservationDone ||= {};
   state.placeVotes ||= {};
+  state.attendance ||= {};
+  state.budgetOverrides ||= {};
+  state.transportOverrides ||= {};
 }
 function currentSchedule(){return state.plans.use12}
 function activeDays(){return ['12','13','14','15','16']}
@@ -529,7 +535,7 @@ function exportJsonBackup(){downloadJsonText(JSON.stringify(buildJsonPayload(),n
 function normalizeImportedState(data){
   const imported=data?.format===JSON_FORMAT?data.state:(data?.state?.plans?data.state:data);
   if(!imported||typeof imported!=='object'||!imported.plans||typeof imported.plans!=='object')throw new Error('지원하지 않는 일정 JSON 형식입니다.');
-  const cleaned={activePlan:'use12',recommendationId:imported.recommendationId===RECOMMENDATION_ID?RECOMMENDATION_ID:'',plans:{use12:blankPlan()},reservationDone:{},placeVotes:{}};
+  const cleaned={activePlan:'use12',recommendationId:imported.recommendationId===RECOMMENDATION_ID?RECOMMENDATION_ID:'',plans:{use12:blankPlan()},reservationDone:{},placeVotes:{},attendance:{},budgetOverrides:{},transportOverrides:{}};
   const legacyA=imported.plans.use12||{};
   const legacyB=imported.plans.start13||{};
   const importDays=Object.values(legacyA).some(list=>Array.isArray(list)&&list.length)?legacyA:legacyB;
@@ -567,6 +573,36 @@ function normalizeImportedState(data){
   if(imported.placeVotes&&typeof imported.placeVotes==='object'){
     for(const [key,value] of Object.entries(imported.placeVotes)){
       if(placeById(key)&&['up','down',''].includes(value))cleaned.placeVotes[key]=value;
+    }
+  }
+  // Optional shared five-person participation and cost fields (v15-compatible extension).
+  const validIds=new Set((window.TRIP_PARTICIPANTS||[]).map(p=>p.id));
+  const allItemIds=new Set(Object.values(cleaned.plans.use12).flat().map(item=>item.uid));
+  if(imported.attendance && typeof imported.attendance==='object' && !Array.isArray(imported.attendance)){
+    for(const [key,ids] of Object.entries(imported.attendance)){
+      if(allItemIds.has(key)&&Array.isArray(ids)){
+        cleaned.attendance[key]=[...new Set(ids.filter(id=>validIds.has(id)))];
+      }
+    }
+  }
+  const acceptedCategories=new Set(['admission','food','lodging','transport','other']);
+  if(imported.budgetOverrides&&typeof imported.budgetOverrides==='object'&&!Array.isArray(imported.budgetOverrides)){
+    for(const [key,entry] of Object.entries(imported.budgetOverrides)){
+      if(!allItemIds.has(key)||!entry||typeof entry!=='object')continue;
+      if(!Number.isSafeInteger(entry.yen)||entry.yen<0||entry.yen>10000000)continue;
+      cleaned.budgetOverrides[key]={yen:entry.yen,category:acceptedCategories.has(entry.category)?entry.category:'other'};
+    }
+  }
+  if(imported.transportOverrides&&typeof imported.transportOverrides==='object'&&!Array.isArray(imported.transportOverrides)){
+    for(const [key,entry] of Object.entries(imported.transportOverrides)){
+      const parts=key.split('|');
+      if(parts.length!==3||!Object.hasOwn(cleaned.plans.use12,parts[0]))continue;
+      const dayIds=new Set(cleaned.plans.use12[parts[0]].map(x=>x.uid));
+      if(!dayIds.has(parts[1])||!dayIds.has(parts[2]))continue;
+      if(!entry||!Number.isSafeInteger(entry.yen)||entry.yen<0||entry.yen>10000000)continue;
+      if(!['walk','train','bus','taxi','other'].includes(entry.mode)||!['per_person','shared_total'].includes(entry.type))continue;
+      const selected=Array.isArray(entry.memberIds)?[...new Set(entry.memberIds.filter(id=>validIds.has(id)))]:[];
+      cleaned.transportOverrides[key]={yen:entry.yen,mode:entry.mode,type:entry.type,memberIds:selected};
     }
   }
   return cleaned;
@@ -1164,6 +1200,8 @@ async function applyRecommendedItinerary(){
     const template=await getRecommendedTemplate();
     const incoming=normalizeImportedState(template);
     incoming.placeVotes={...incoming.placeVotes,...(state.placeVotes||{})};
+    // A user-confirmed template reset intentionally resets participation and estimated cost edits.
+    // Previous shared data remains unchanged until the user presses Save.
     // A new day-by-day recommendation does not make old booking checks valid.
     incoming.reservationDone={};
     state=incoming;ensureState();migrateLegacyRoutes();
