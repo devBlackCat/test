@@ -1,0 +1,100 @@
+/* Compact group participation: real cropped avatars from the user-provided group screenshot. */
+.trip-members{display:flex;align-items:center;gap:4px;flex:none;padding:3px 5px;border:1px solid #e6eaf1;background:#fff;border-radius:12px}
+.trip-members-label{font-size:10px;color:#7a8a9d;font-weight:750;margin:0 4px}
+.trip-avatar{display:block;width:31px;height:31px;object-fit:cover;border-radius:50%;border:1px solid #e6eaf2;background:#e9eef4;flex:none}
+.trip-top-person{border:2px solid transparent;padding:1px;background:transparent;cursor:pointer;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.trip-top-person.active{border-color:#3b82f6;background:#edf4ff}
+.trip-top-person:hover{background:#eaf1f9}
+.trip-top-person:focus-visible,.trip-attendees-strip:focus-visible,.trip-person-option:focus-visible{outline:2px solid #3566a7;outline-offset:2px}
+.trip-library-data{align-self:flex-start;position:relative;margin:2px 0 0}
+.trip-library-data>summary{font-size:10px!important;padding:6px 9px!important;background:#fff!important;color:#7b8797!important}
+.trip-library-data .data-menu-content{z-index:70;top:100%;left:0;right:auto;min-width:175px}
+.top-controls>.json-status.saved,.top-controls>.json-status.neutral{display:none}
+.top-controls>.json-status.dirty{font-size:10px;max-width:200px;white-space:normal}
+.trip-attendees-strip{display:flex;align-items:center;gap:5px;margin-top:2px;padding:1px 0;border:0;background:transparent;cursor:pointer;max-width:100%;width:fit-content}
+.trip-avatar-stack{display:flex;align-items:center;padding-left:1px;min-width:0}
+.trip-avatar.trip-avatar-small{width:19px;height:19px;margin-left:-3px;border:2px solid white;box-sizing:border-box}
+.trip-avatar.trip-avatar-small:first-child{margin-left:0}
+.trip-attendee-count{font-size:9px;color:#8895a6;font-weight:700}
+.trip-split-count{color:#1e6aa8;font-weight:850}
+.trip-not-in-group{opacity:.46;background:#f8fafc!important}
+.trip-inspector-extension{grid-column:1/-1;display:grid;grid-template-columns:minmax(310px,1.3fr) minmax(290px,1fr);gap:14px;margin:10px 0 0;padding-top:10px;border-top:1px solid #edf0f4}
+.trip-inspector-people,.trip-expense-panel{min-width:0;display:grid;align-content:start;gap:7px}
+.trip-block-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px}
+.trip-block-heading strong{font-size:12px;color:#33475e}
+.trip-block-heading small{font-size:10px;color:#98a5b5}
+.trip-block-heading button{border:0;background:transparent;font-weight:800;color:#47769f;font-size:10px;cursor:pointer;padding:4px 2px}
+.trip-person-picker{display:flex;align-items:stretch;flex-wrap:wrap;gap:5px}
+.trip-person-option{display:flex;align-items:center;gap:4px;min-width:0;border:1px solid #e2e7ee;border-radius:8px;background:#fafbfd;color:#768394;padding:3px 6px;cursor:pointer;font-size:10px;font-weight:700}
+.trip-person-option.selected{border-color:#b0c9e6;background:#eef5ff;color:#285881}
+.trip-person-option .trip-avatar{width:25px;height:25px;opacity:.55}
+.trip-person-option.selected .trip-avatar{opacity:1}
+.trip-person-option b{font-size:10px;color:#7da2c7}
+.trip-person-option input[type="checkbox"]{accent-color:#2b77ba}
+.trip-expense-numbers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.trip-expense-numbers>span{border:1px solid #ebeff4;background:#f9fbfd;border-radius:8px;padding:7px;display:grid;gap:3px;min-width:0}
+.trip-expense-numbers small{font-size:9px;color:#8b98a9}
+.trip-expense-numbers b{font-size:13px;color:#243f63;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trip-expense-note{display:block;font-size:9px;line-height:1.5;color:#8795a6}
+.trip-expense-note a{color:#3b6eac;text-decoration:underline}
+.trip-item-price{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.trip-item-price>label{font-size:10px;font-weight:700;color:#5c748d}
+.trip-item-price>select,.trip-item-price>input{min-width:0;border:1px solid #dbe3ed;background:#fff;border-radius:7px;padding:5px;font-size:10px}
+.trip-item-price>select{max-width:95px}
+.trip-item-price>input{width:86px}
+.trip-item-price>button,.trip-prev-transit{border:1px solid #d8e3ef;background:#fff;color:#4c708e;border-radius:7px;padding:5px 8px;font-size:10px;font-weight:700;cursor:pointer}
+.trip-item-price>button:disabled{opacity:.4;cursor:default}
+.trip-prev-transit{width:fit-content;margin-top:2px}
+.trip-leg-fee{border:1px solid #dbe4ec;background:#fff;color:#567895;border-radius:6px;padding:3px 5px;font-size:9px;font-weight:750;cursor:pointer;max-width:100%}
+.trip-leg-fee:hover,.trip-prev-transit:hover{border-color:#abc9e6;background:#f1f7ff}
+.movement-hint.route-leg-hint .trip-leg-fee{margin:2px 0 0 12px}
+.day-inspector{max-height:46%;min-height:160px}
+.trip-dialog{border:none;border-radius:17px;padding:0;width:min(590px,94vw);max-height:90vh;overflow:auto;box-shadow:0 20px 80px rgba(25,36,60,.28)}
+.trip-dialog::backdrop{background:rgba(17,27,40,.45)}
+.trip-modal-content{padding:20px;display:grid;gap:12px;min-width:0}
+.trip-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.trip-modal-head h2{font-size:19px;margin:0}
+.trip-modal-head>button{border:0;background:#f1f4f7;border-radius:8px;width:32px;height:32px;font-size:23px;color:#57677d;cursor:pointer}
+.trip-modal-note{font-size:11px;line-height:1.6;color:#738296;margin:0}
+.trip-modal-note a{color:#315e9b;text-decoration:underline}
+.trip-modal-total{display:grid;gap:3px;padding:12px;background:#f2f7fd;border-radius:10px}
+.trip-modal-total small{font-size:10px;color:#6d8099}
+.trip-modal-total strong{font-size:27px;color:#233f61}
+.trip-budget-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.trip-budget-grid>div{background:#fafbfd;border:1px solid #e9eef4;border-radius:8px;padding:9px;display:grid;gap:6px}
+.trip-budget-grid span{font-size:10px;color:#8091a4}
+.trip-budget-grid b{font-size:14px;color:#35516f}
+.trip-modal-content h3{font-size:13px;margin:4px 0 0;color:#40546e}
+.trip-budget-days,.trip-budget-people{display:grid;gap:4px}
+.trip-budget-days>div,.trip-budget-people>div{display:flex;align-items:center;gap:8px;padding:7px 6px;border-bottom:1px solid #eef1f5;font-size:12px}
+.trip-budget-days b,.trip-budget-people b{margin-left:auto}
+.trip-budget-days small{font-size:9px;color:#95a0ae}
+.trip-budget-people img{width:28px;height:28px}
+.trip-control-label{display:grid;gap:5px;font-weight:750;color:#435873;font-size:11px}
+.trip-control-label select,.trip-control-label input[type=number]{padding:9px;border:1px solid #d7e1ec;border-radius:8px;font-size:12px;background:#fff;color:#364b60}
+.trip-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:3px}
+.trip-modal-actions button{border:1px solid #dce3ed;background:#fff;border-radius:8px;padding:9px 12px;font-weight:800;color:#53657d;cursor:pointer}
+.trip-modal-actions button.trip-primary-action{background:#186fba;color:#fff;border-color:#186fba}
+.trip-modal-actions button:disabled{opacity:.4;cursor:default}
+@media(max-width:1270px) and (min-width:921px){
+  .trip-inspector-extension{grid-template-columns:1fr;gap:9px}
+  .day-inspector{max-height:49%}
+  .trip-person-option{font-size:9px;padding:2px 4px}
+  .trip-person-option .trip-avatar{width:22px;height:22px}
+}
+@media(max-width:920px){
+  .trip-members{flex-wrap:wrap;order:-1}
+  .trip-members-label{display:none}
+  .trip-members .trip-avatar{width:30px;height:30px}
+  .trip-inspector-extension{grid-template-columns:1fr;gap:12px}
+  .day-inspector{max-height:none;overflow:visible}
+  .trip-expense-numbers{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .trip-person-option{font-size:10px}
+  .trip-dialog{width:96vw}
+}
+@media(max-width:480px){
+  .trip-person-option span{font-size:9px;max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .trip-person-option .trip-avatar{width:23px;height:23px}
+  .trip-expense-numbers b{font-size:11px}
+  .trip-budget-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
