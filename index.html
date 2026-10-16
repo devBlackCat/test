@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="assets/style.css?v=20" />
   <link rel="stylesheet" href="assets/route-analysis.css" />
   <link rel="stylesheet" href="assets/group-budget.css?v=21" />
+  <link rel="stylesheet" href="assets/reservations.css?v=22" />
 </head>
 <body>
   <header class="topbar">
@@ -16,6 +17,7 @@
       <div class="brand-mark">N</div>
       <div><p class="eyebrow">2027 MAY · KANSAI · 12일 밤 출발</p><h1>Nintendo × Pokémon 일정 편집기</h1></div>
     </div>
+    <nav class="page-nav" aria-label="페이지 메뉴"><a href="#home" data-page-nav="home" class="active" aria-current="page">홈</a><a href="#reservations" data-page-nav="reservations">예약리스트</a></nav>
     <div class="top-controls">
       <div id="participantToolbar" class="trip-members" aria-label="5명 프로필을 일정으로 끌어다 놓으세요"></div>
       <button id="tripBudgetBtn" class="trip-top-budget" type="button" title="5명 총 예상 경비 및 미확정 항목 확인">예상 합계 계산 중</button>
@@ -63,6 +65,19 @@
     </section>
   </main>
 
+  <section id="reservationPage" class="reservation-page panel" aria-labelledby="reservationHeading" hidden>
+    <div class="res-page-head">
+      <div><p class="res-eyebrow">2027 MAY · KANSAI</p><h2 id="reservationHeading">예약리스트</h2><p>일정에 넣은 모든 장소와 항목을 표시합니다. 직접 완료로 체크한 항목만 예약 완료로 표시됩니다.</p></div>
+      <div id="reservationStats" class="res-stats" aria-live="polite"></div>
+    </div>
+    <div class="res-filters" id="reservationFilters" role="group" aria-label="예약 상태 필터">
+      <button type="button" class="active" data-booking-filter="all" aria-pressed="true">전체</button>
+      <button type="button" data-booking-filter="pending" aria-pressed="false">미완료</button>
+      <button type="button" data-booking-filter="done" aria-pressed="false">완료</button>
+    </div>
+    <div id="reservationRows" class="res-list"></div>
+  </section>
+
   <dialog id="detailDialog" class="dialog detail-dialog">
     <div class="detail-modal">
       <button id="detailCloseBtn" class="dialog-close detail-modal-close" type="button" aria-label="닫기">×</button>
@@ -97,5 +112,6 @@
   <script defer src="assets/app.js?v=20"></script>
   <script defer src="assets/route-analysis.js"></script>
   <script defer src="assets/group-budget.js?v=21"></script>
+  <script defer src="assets/reservations.js?v=22"></script>
 </body>
 </html>
