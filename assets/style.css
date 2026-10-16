@@ -292,3 +292,119 @@ body{min-width:0;display:flex;flex-direction:column;overflow:hidden}
   .schedule-card{transition:none}
   .place-card{transition:none}
 }
+
+
+/* v18 - Schedule dashboard: glanceable cards and a dedicated lower editor.
+   CSS-only layout changes: shared schedule state and drag/drop semantics unchanged. */
+.schedule-board{gap:11px}
+.drop-zone{padding:9px 8px}
+.schedule-card,.schedule-card.required,.schedule-card.hotel,.schedule-card.option,.schedule-card.custom,.route-schedule-card{
+  padding:9px 8px;margin-bottom:7px;border-radius:12px;min-width:0;
+  transition:background-color .15s,border-color .15s,box-shadow .15s
+}
+.schedule-card.is-selected{border-color:#6c95bf;box-shadow:0 0 0 2px rgba(92,141,191,.13);background:#fbfdff}
+.schedule-card-layout{display:grid;grid-template-columns:9px 38px minmax(0,1fr) auto;gap:6px;align-items:center;min-width:0}
+.schedule-card-layout>.drag-handle{align-self:center;font-size:12px;line-height:1;color:#a3afbe;cursor:grab}
+.schedule-thumb{width:38px;height:38px;display:block;object-fit:cover;object-position:center;border-radius:9px;flex:none;background:#f1f4f8}
+.schedule-thumb-icon{display:grid;place-items:center;font-size:21px;color:#667f9e;border:1px solid #e5ecf3}
+.schedule-card-copy{min-width:0;display:grid;gap:4px}
+.schedule-card-title-line{display:flex;align-items:start;min-width:0}
+.schedule-card-layout .card-title{font-size:11px;font-weight:800;line-height:1.36;min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;letter-spacing:-.02em}
+.schedule-card-subline{display:flex;align-items:center;gap:4px 7px;min-width:0;flex-wrap:wrap}
+.schedule-card .card-time-readout,.compact-mode .schedule-card.is-selected .card-time-readout,body.mobile-editing .schedule-card .card-time-readout{display:inline-flex;align-items:center;margin:0;font-size:10px;color:#566b80;font-weight:750;letter-spacing:.01em}
+.schedule-time-separator{margin:0 2px;color:#a0afbf}
+.schedule-card .booking-tag{font-size:8px;padding:2px 4px;border-radius:5px;max-width:100%;white-space:nowrap}
+.memo-indicator,.route-member-count{font-size:9px;color:#75889d;white-space:nowrap}
+.schedule-card .card-actions{display:flex;align-self:start;align-items:center;gap:0}
+.schedule-card .card-icon{width:20px;height:22px;padding:0;font-size:13px;border-radius:5px}
+.schedule-card .detail-btn{color:#6f94ba}
+.schedule-card .remove-btn{color:#98a5b4}
+.schedule-card .remove-btn:hover{color:#bc4250;background:#fff0f1}
+.schedule-card .schedule-warning{margin:7px 0 0;font-size:9px;line-height:1.45}
+.route-schedule-card .route-schedule-members{min-width:0;margin:0}
+.route-member-preview{display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#8290a1;font-size:9px;line-height:1.35}
+.route-schedule-card .route-inner-distance{display:block;width:fit-content;max-width:100%;margin:4px 0 0;padding:2px 5px;background:#f4f7fb;border-radius:5px;color:#6d8197;font-size:8px}
+.compact-mode .schedule-card{padding:6px 7px;margin-bottom:5px}
+.compact-mode .schedule-card-layout{grid-template-columns:8px 29px minmax(0,1fr) auto;gap:5px}
+.compact-mode .schedule-card .schedule-thumb{width:29px;height:29px;border-radius:7px}
+.compact-mode .schedule-thumb-icon{font-size:16px}
+.compact-mode .schedule-card-layout .card-title{font-size:10.5px;-webkit-line-clamp:1}
+.compact-mode .schedule-card .card-time-readout{font-size:9px}
+.compact-mode .route-schedule-members{display:none}
+.compact-mode .schedule-card .booking-tag{font-size:7.5px}
+
+/* Lower panel owns all changes to time, memo, and reservation completion. */
+.day-inspector{min-height:160px;max-height:37%;padding:11px 13px}
+.inspector-content{grid-template-columns:minmax(160px,.7fr) minmax(300px,1.8fr) minmax(165px,.85fr);gap:13px;align-items:stretch}
+.inspector-stats{align-content:start}
+.inspector-stat{padding:8px 7px}
+.inspector-workspace{min-width:0;display:grid;align-content:start;gap:9px}
+.inspector-empty-workspace{align-content:center;justify-items:start;gap:5px;padding:12px;border:1px dashed #dce5ef;border-radius:10px;color:#53667d;background:#fafcfe}
+.inspector-empty-workspace strong{font-size:12px}
+.inspector-empty-workspace span{font-size:10px;line-height:1.5;color:#8896a7}
+.inspector-selected-head{display:flex;align-items:center;gap:8px;min-width:0}
+.inspector-selected-head .schedule-thumb{width:39px;height:39px}
+.inspector-selected-name{min-width:0;flex:1;display:grid;gap:2px}
+.inspector-selected-name strong{font-size:12px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;color:#344357}
+.inspector-selected-name small{font-size:9px;color:#92a0b0}
+.inspector-selected-head #inspectorClose{flex:none}
+.inspector-editor-grid{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(200px,1.5fr);gap:10px}
+.inspector-time-block,.inspector-memo-block{min-width:0}
+.inspector-time-block>label,.inspector-memo-block>label{display:block;font-size:10px;font-weight:800;color:#596e83;margin-bottom:5px}
+.inspector-time-fields{display:flex;align-items:center;gap:5px;min-width:0}
+.inspector-time-fields input{width:0;min-width:0;flex:1;padding:6px 4px;border:1px solid #dce4ed;border-radius:7px;background:#fff;color:#384c65;font-size:11px}
+.inspector-time-fields span{flex:none;font-size:12px;color:#8d9cac}
+.inspector-time-view{display:none;font-size:12px;font-weight:750;color:#4c6480;padding:3px 0}
+.inspector-memo-block .inspector-memo-edit{display:flex;gap:6px;align-items:end}
+.inspector-memo-block textarea{min-width:0;max-height:75px;height:42px;font-size:10px;line-height:1.5}
+.inspector-memo-block .display-btn{padding:6px 9px}
+.inspector-more-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-start}
+.inspector-more-actions .inspector-minor{font-size:10px}
+.inspector-route-places{display:grid;gap:4px}
+.inspector-route-places>span{font-size:9px;font-weight:800;color:#708197}
+.inspector-route-places>div{display:flex;flex-wrap:wrap;gap:4px}
+.inspector-route-places button{border:1px solid #e2e8ef;background:#fafbfd;border-radius:6px;color:#58718d;padding:4px 6px;font-size:9px;cursor:pointer}
+.inspector-route-places button:hover{background:#eff5fc}
+.inspector-bookings{max-height:143px;gap:6px;padding-left:11px;border-left:1px solid #edf0f4}
+.inspector-booking{line-height:1.35}
+.inspector-booking span{font-size:10px}
+.inspector-booking small{line-height:1.4}
+.inspector-memo-readonly{display:none}
+.movement-hint.route-leg-hint{margin:0 6px 7px;padding:5px 7px;border-radius:7px;border:1px dashed #dce6f2;background:#f7fafd}
+.movement-hint.route-leg-hint.route-leg-long{border-color:#eddfcc;background:#fffbf5}
+.route-leg-main{font-size:10px}
+.route-leg-actions{padding-left:12px}
+.route-segment-link{font-size:9px}
+
+@media(min-width:921px) and (max-width:1280px){
+  .inspector-content{grid-template-columns:minmax(135px,.65fr) minmax(260px,1.65fr) minmax(145px,.85fr);gap:8px}
+  .inspector-editor-grid{grid-template-columns:1fr;gap:7px}
+  .schedule-card-layout{grid-template-columns:8px 34px minmax(0,1fr) auto;gap:5px}
+  .schedule-thumb{width:34px;height:34px}
+}
+@media(max-width:920px){
+  .schedule-card-layout{grid-template-columns:38px minmax(0,1fr) auto;gap:9px}
+  .schedule-card-layout>.drag-handle{display:none}
+  .schedule-card .schedule-thumb{width:38px;height:38px}
+  .schedule-card .card-actions{display:flex}
+  body:not(.mobile-editing) .schedule-card .remove-btn{display:none}
+  .schedule-card-layout .card-title{font-size:13px}
+  .schedule-card .card-time-readout,body.mobile-editing .schedule-card .card-time-readout{display:inline-flex}
+  .day-inspector{max-height:none;height:auto;overflow:visible}
+  .inspector-content{grid-template-columns:1fr;gap:12px}
+  .inspector-workspace,.inspector-bookings{border-top:1px solid #edf0f4;border-left:0;padding:11px 0 0;max-height:none}
+  .inspector-editor-grid{grid-template-columns:1fr;gap:10px}
+  .inspector-time-fields,.inspector-memo-block .inspector-memo-edit{display:none}
+  .inspector-time-view,.inspector-memo-block .inspector-memo-readonly{display:block}
+  body.mobile-editing .inspector-time-fields,body.mobile-editing .inspector-memo-block .inspector-memo-edit{display:flex}
+  body.mobile-editing .inspector-time-view,body.mobile-editing .inspector-memo-block .inspector-memo-readonly{display:none}
+  .inspector-bookings{max-height:none}
+  body:not(.mobile-editing) .inspector-booking{pointer-events:none}
+  .compact-mode .schedule-card-layout{grid-template-columns:29px minmax(0,1fr) auto}
+  .compact-mode .schedule-card .schedule-thumb{width:29px;height:29px}
+}
+@media(max-width:480px){
+  .schedule-card-layout{gap:7px}
+  .schedule-card-layout .card-title{font-size:12px}
+  .inspector-time-fields input{font-size:12px}
+}
