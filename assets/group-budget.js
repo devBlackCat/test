@@ -80,8 +80,11 @@
         const parts=key.split("|"),items=itemList(day);
         const fromIndex=items.findIndex(it=>it.uid===parts[1]);
         if(fromIndex<0||items[fromIndex+1]?.uid!==parts[2])continue;
-        const payers=legAttendees(entry).filter(id=>!personId||personId===id);
-        for(const id of payers)amounts.transport+=personShare(entry,id);
+        // A fare applies only to friends who still attend both endpoints.
+        const activePayers=legAttendees(entry).filter(id=>attendees(items[fromIndex]).includes(id)&&attendees(items[fromIndex+1]).includes(id));
+        const effective={...entry,memberIds:activePayers};
+        const payers=activePayers.filter(id=>!personId||personId===id);
+        for(const id of payers)amounts.transport+=personShare(effective,id);
       }
     }
     return {amounts,total:Object.values(amounts).reduce((a,b)=>a+b,0),missing,confirmedCount};
