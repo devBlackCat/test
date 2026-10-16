@@ -38,6 +38,13 @@ window.TRIP_BUDGET_DEFAULTS = {
       "note": "USJ 입장권 비용은 USJ 카드로만 계상. 확약권·익스프레스 추가비 미포함",
       "source": "https://www.usj.co.jp/web/en/us/areas/super-nintendo-world"
     },
+    "harukaOsaka": {
+      "category": "transport",
+      "yen": 1800,
+      "confidence": "conditional",
+      "note": "외국인 대상 KIX→오사카 편도 HARUKA 상품, 구간 확인 필요",
+      "source": "https://www.westjr.co.jp/travel-information/kr/tickets-passes/oneway/haruka/"
+    },
     "haruka": {
       "category": "transport",
       "yen": 2200,
