@@ -11,7 +11,7 @@
 .trip-library-data .data-menu-content{z-index:70;top:100%;left:0;right:auto;min-width:175px}
 .top-controls>.json-status.saved,.top-controls>.json-status.neutral{display:none}
 .top-controls>.json-status.dirty{font-size:10px;max-width:200px;white-space:normal}
-.trip-attendees-strip{display:flex;align-items:center;gap:5px;margin-top:2px;padding:1px 0;border:0;background:transparent;cursor:pointer;max-width:100%;width:fit-content}
+.trip-attendees-strip{display:flex;align-items:center;gap:5px;margin-top:2px;padding:1px 0;border:0;background:transparent;max-width:100%;width:fit-content}
 .trip-avatar-stack{display:flex;align-items:center;padding-left:1px;min-width:0}
 .trip-avatar.trip-avatar-small{width:19px;height:19px;margin-left:-3px;border:2px solid white;box-sizing:border-box}
 .trip-avatar.trip-avatar-small:first-child{margin-left:0}
@@ -116,17 +116,17 @@
 .trip-top-budget{display:flex;align-items:center;justify-content:center;gap:5px;flex:none;max-width:235px;min-width:0;padding:8px 11px;border:1px solid #c6deef;background:#f3f8fd;border-radius:10px;font-size:11px;font-weight:850;color:#2d6489;white-space:nowrap;cursor:pointer}
 .trip-top-budget:hover{border-color:#8bb9d9;background:#eaf3fb}
 .trip-top-budget:focus-visible{outline:2px solid #3566a7;outline-offset:2px}
-.trip-attendees-default{display:inline-flex;align-items:center;gap:4px;min-height:19px;width:fit-content;border:0;background:transparent;color:#6a8298;padding:1px 2px;margin-top:1px;font-weight:750;font-size:9px;cursor:pointer}
-.trip-attendees-default:hover{color:#2169a5}
+
+
 .trip-attendees-strip{margin-top:1px;display:flex;gap:5px;flex-wrap:wrap;min-height:22px;align-items:center}
 .trip-avatar-stack{display:flex;align-items:center;gap:1px;padding:0;flex-wrap:wrap}
 .trip-card-person{display:grid;place-items:center;border:1px solid transparent;background:transparent;border-radius:50%;cursor:grab;margin:0;padding:0;width:23px;height:23px;touch-action:manipulation}
 .trip-card-person:hover{background:#fce7e8;border-color:#f4c1c4}
 .trip-card-person .trip-avatar.trip-avatar-small{width:20px;height:20px;margin:0;border:1px solid #fff}
 .trip-card-person:hover .trip-avatar{opacity:.6}
-.trip-reset-all{border:0;background:#eef5fd;border-radius:6px;padding:3px 5px;color:#47729e;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap}
-.trip-reset-all:hover{background:#daeafa}
-.trip-attendee-empty{color:#b14c53;font-size:9px}
+
+
+
 .schedule-card.trip-drop-person{border-color:#2b82cf!important;background:#f1f9ff!important;box-shadow:0 0 0 2px #c4e1f8}
 .schedule-card .trip-attendees-strip{max-width:100%}
 /* Budget appears once, at the top. All item edits stay in its detail modal. */
