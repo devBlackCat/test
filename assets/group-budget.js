@@ -34,6 +34,13 @@
         confidence:"bundle",note:"묶음 내 확인된 항목의 합계(미확정 항목 별도)"};
     }
     if(item.placeId){
+      // HARUKA fare varies by endpoint. Don't apply the Kyoto ticket to every use.
+      if(item.placeId==="haruka"){
+        const text=(item.memo||"")+" "+(item.title||"");
+        if(/교토|kyoto/i.test(text))return normalizePrice(guide.priceGuide?.haruka);
+        if(/오사카|osaka/i.test(text))return normalizePrice(guide.priceGuide?.harukaOsaka);
+        return null;
+      }
       const known=normalizePrice(guide.priceGuide?.[item.placeId]);
       if(known)return known;
       if(item.placeId==="ujitea")return {yen:guide.assumptions.teaJPY||750,category:"food",confidence:"assumption",note:"말차·디저트 1인 예산 가정"};
