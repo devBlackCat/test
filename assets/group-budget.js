@@ -69,6 +69,10 @@
       }
       for(const [key,entry] of Object.entries(state.transportOverrides||{})){
         if(!key.startsWith(day+"|")||!entry||!Number.isInteger(entry.yen))continue;
+        // A moved or removed schedule card invalidates the old transfer pair.
+        const parts=key.split("|"),items=itemList(day);
+        const fromIndex=items.findIndex(it=>it.uid===parts[1]);
+        if(fromIndex<0||items[fromIndex+1]?.uid!==parts[2])continue;
         const payers=legAttendees(entry).filter(id=>!personId||personId===id);
         for(const id of payers)amounts.transport+=personShare(entry,id);
       }
