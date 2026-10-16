@@ -105,3 +105,72 @@
   body:not(.mobile-editing) .trip-prev-transit,
   body:not(.mobile-editing) .trip-leg-fee{pointer-events:none;opacity:.62}
 }
+
+
+/* v20: The top portraits are reusable drag sources, not a per-user itinerary filter. */
+.trip-top-person{cursor:grab;touch-action:manipulation}
+.trip-top-person:active,.trip-card-person:active{cursor:grabbing}
+.trip-top-person.active{border-color:#2877c5;box-shadow:0 0 0 2px #cde6ff}
+.trip-members{flex:none}
+.trip-members-label{white-space:nowrap;color:#576980;font-size:10px}
+.trip-top-budget{display:flex;align-items:center;justify-content:center;gap:5px;flex:none;max-width:235px;min-width:0;padding:8px 11px;border:1px solid #c6deef;background:#f3f8fd;border-radius:10px;font-size:11px;font-weight:850;color:#2d6489;white-space:nowrap;cursor:pointer}
+.trip-top-budget:hover{border-color:#8bb9d9;background:#eaf3fb}
+.trip-top-budget:focus-visible{outline:2px solid #3566a7;outline-offset:2px}
+.trip-attendees-default{display:inline-flex;align-items:center;gap:4px;min-height:19px;width:fit-content;border:0;background:transparent;color:#6a8298;padding:1px 2px;margin-top:1px;font-weight:750;font-size:9px;cursor:pointer}
+.trip-attendees-default:hover{color:#2169a5}
+.trip-attendees-strip{margin-top:1px;display:flex;gap:5px;flex-wrap:wrap;min-height:22px;align-items:center}
+.trip-avatar-stack{display:flex;align-items:center;gap:1px;padding:0;flex-wrap:wrap}
+.trip-card-person{display:grid;place-items:center;border:1px solid transparent;background:transparent;border-radius:50%;cursor:grab;margin:0;padding:0;width:23px;height:23px;touch-action:manipulation}
+.trip-card-person:hover{background:#fce7e8;border-color:#f4c1c4}
+.trip-card-person .trip-avatar.trip-avatar-small{width:20px;height:20px;margin:0;border:1px solid #fff}
+.trip-card-person:hover .trip-avatar{opacity:.6}
+.trip-reset-all{border:0;background:#eef5fd;border-radius:6px;padding:3px 5px;color:#47729e;font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap}
+.trip-reset-all:hover{background:#daeafa}
+.trip-attendee-empty{color:#b14c53;font-size:9px}
+.schedule-card.trip-drop-person{border-color:#2b82cf!important;background:#f1f9ff!important;box-shadow:0 0 0 2px #c4e1f8}
+.schedule-card .trip-attendees-strip{max-width:100%}
+/* Budget appears once, at the top. All item edits stay in its detail modal. */
+.trip-budget-editor{display:grid;gap:7px;border-top:1px solid #e5ebf2;padding-top:11px}
+.trip-budget-editor>strong{font-size:12px;color:#47617e}
+.trip-budget-editor .trip-item-price{display:flex;flex-wrap:wrap;gap:6px}
+/* The lower inspector is a single lightweight row for selected item time + reservations. */
+.day-inspector{min-height:0;max-height:none;flex:0 0 auto;overflow:visible;padding:9px 12px;box-shadow:none}
+.inspector-top{padding-bottom:0;border-bottom:0;gap:12px;min-height:28px}
+.inspector-heading{align-items:center;gap:8px}
+.inspector-heading strong{font-size:11px;color:#61748a;font-weight:700}
+.inspector-lite-body{display:flex;align-items:center;gap:15px;border-top:1px solid #eef1f5;margin-top:6px;padding-top:9px;flex-wrap:wrap}
+.inspector-lite-name{display:flex;align-items:center;gap:8px;min-width:140px;max-width:300px;flex:0 1 auto}
+.inspector-lite-name strong{font-size:12px;color:#344a61;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inspector-lite-controls{display:flex;align-items:center;flex:1;flex-wrap:wrap;gap:9px;min-width:0}
+.inspector-lite-time{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.inspector-lite-time input{min-width:0;width:103px;border:1px solid #dbe3ed;background:#fff;color:#455c78;font-size:11px;padding:6px;border-radius:7px}
+.inspector-lite-time span{font-size:12px;color:#a2adba}
+.inspector-lite-bookings{display:flex;flex-wrap:wrap;gap:7px}
+.inspector-lite-bookings label{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;color:#586b7f}
+.inspector-lite-bookings input{accent-color:#487ba6}
+.inspector-lite-actions{display:flex;gap:6px;align-items:center}
+.inspector-lite-empty{padding:2px 0 0;font-size:10px;color:#929ead;margin:0;line-height:1.45}
+/* Old dense lower inspector sections have no runtime markup after the redesign. */
+.inspector-content,.trip-inspector-extension{display:none}
+@media(max-width:1100px){
+ .trip-members-label{display:none}
+ .trip-top-budget{font-size:10px;max-width:190px;padding:7px}
+ .inspector-lite-body{align-items:flex-start;gap:8px}
+}
+@media(max-width:920px){
+ .trip-members{order:0;flex:none}
+ .top-controls{flex-wrap:wrap}
+ .trip-top-budget{max-width:none;order:0}
+ .trip-members .trip-avatar{width:30px;height:30px}
+ .day-inspector{padding:10px 12px}
+ .inspector-lite-body{flex-direction:column;align-items:stretch;gap:8px}
+ .inspector-lite-controls{flex-direction:column;align-items:flex-start}
+ .inspector-lite-time input{width:125px}
+ .inspector-lite-empty{font-size:11px}
+ body:not(.mobile-editing) .inspector-lite-time{opacity:.8;pointer-events:none}
+}
+@media(max-width:420px){
+ .trip-top-budget{max-width:100%;width:100%}
+ .trip-members{gap:1px}
+ .trip-members .trip-avatar{width:28px;height:28px}
+}
