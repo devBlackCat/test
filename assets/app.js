@@ -803,52 +803,75 @@ function getSelectedItem(){
   return item?{item,day:selectedScheduleDay}:null;
 }
 
-function renderDayInspector(){
+function renderDayInspector() {
   const root=document.getElementById('dayInspector');if(!root)return;
   const selected=getSelectedItem(),day=selected?.day||activeMobileDay;
-  const list=currentSchedule()[day]||[],reqs=new Map();
-  list.forEach(item=>itemPlaceIds(item).forEach(id=>{if(RESERVATION_RULES[id])reqs.set(id,placeById(id))}));
-  const pending=[...reqs.keys()].filter(id=>!state.reservationDone[reservationKey(id,day)]).length;
+  const list=currentSchedule()[day]||[],dayRequirements=new Map();
+  list.forEach(item=>itemPlaceIds(item).forEach(id=>{if(RESERVATION_RULES[id])dayRequirements.set(id,placeById(id))}));
+  const pending=[...dayRequirements.keys()].filter(id=>!state.reservationDone[reservationKey(id,day)]).length;
   const stats=window.tripRouteSummary?.(day);
   const chosen=selected?.item||null,place=chosen?.placeId?placeById(chosen.placeId):null,route=chosen?.routeId?routeById(chosen.routeId):null;
-  const title=place?.title||route?.title||chosen?.title||'일정을 선택해 상세 보기';
-  const description=place?.desc||route?.desc||'위의 일정 카드를 선택하면 장소 설명과 메모를 확인할 수 있습니다.';
+  const title=place?.title||route?.title||chosen?.title||'일정 편집';
+  const bookingIds=chosen?itemPlaceIds(chosen).filter(id=>RESERVATION_RULES[id]):[...dayRequirements.keys()];
+  const uniqueBookingIds=[...new Set(bookingIds)];
+  const infoActions=chosen?`${place?'<button id="inspectorPlaceDetails" type="button" class="inspector-minor">장소 정보 ⓘ</button>':''}${route?'<button id="inspectorUngroup" type="button" class="inspector-minor">묶음 풀기 ↗</button>':''}${!place&&!route?'<button id="inspectorEditCustom" type="button" class="inspector-minor">일정 이름 수정 ✎</button>':''}`:'';
   root.innerHTML=`<div class="inspector-top">
-    <div class="inspector-heading"><span class="inspector-eyebrow">${DAY_META[day].date} ${DAY_META[day].week}요일 · 하루 요약</span><strong>${list.length}개 일정 · ${pending?pending+'개 예약 확인 필요':'예약 확인 완료'}</strong></div>
-    <button id="inspectorRouteBtn" type="button" class="display-btn" ${!window.openTripRouteAnalysis?'disabled':''}>동선 비교 · 지도</button>
+    <div class="inspector-heading"><span class="inspector-eyebrow">${DAY_META[day].date} ${DAY_META[day].week}요일</span><strong>${chosen?'선택 일정 편집':'하루 요약'}</strong></div>
+    <button id="inspectorRouteBtn" type="button" class="display-btn" ${!window.openTripRouteAnalysis?'disabled':''}>동선 비교 · 지도 ↗</button>
   </div>
   <div class="inspector-content">
     <div class="inspector-stats">
       <div class="inspector-stat"><small>일정</small><strong>${list.length}<em>개</em></strong></div>
-      <div class="inspector-stat"><small>예약 확인</small><strong>${pending}<em>건</em></strong></div>
-      <div class="inspector-stat"><small>확인된 구간 거리</small><strong>${stats&&stats.known?stats.km.toFixed(1):'–'}<em>${stats&&stats.known?'km':''}</em></strong></div>
-      <p class="inspector-footnote">좌표가 있는 구간의 직선거리만 집계합니다. 실제 대중교통 거리·시간은 지도로 확인하세요.</p>
+      <div class="inspector-stat"><small>예약 미확인</small><strong>${pending}<em>건</em></strong></div>
+      <div class="inspector-stat"><small>직선거리 합계</small><strong>${stats&&stats.known?stats.km.toFixed(1):'–'}<em>${stats&&stats.known?'km':''}</em></strong></div>
+      <p class="inspector-footnote">좌표를 확인한 구간의 직선거리입니다. 실제 교통은 지도에서 확인하세요.</p>
     </div>
-    <div class="inspector-details">
-      <div class="inspector-details-head"><strong>${escapeHtml(title)}</strong>${chosen?'<button id="inspectorClose" type="button" class="inspector-minor">선택 해제</button>':''}</div>
-      <p class="inspector-description">${escapeHtml(description)}</p>
-      ${chosen?`<label class="inspector-memo-label" for="inspectorMemo">내 메모</label><p class="inspector-memo-readonly">${escapeHtml(chosen.memo||'메모 없음')}</p>
-      <div class="inspector-memo-edit"><textarea id="inspectorMemo" rows="2" placeholder="시간·예약·이동 메모를 기록하세요">${escapeHtml(chosen.memo||'')}</textarea><button id="inspectorMemoSave" class="display-btn" type="button">메모 저장</button></div>`:''}
-      ${place?'<button id="inspectorPlaceDetails" type="button" class="inspector-minor">장소 상세·사진 보기 ↗</button>':''}
-    </div>
-    <div class="inspector-bookings"><strong>예약·확인 체크</strong>
-    ${reqs.size?[...reqs].map(([id,p])=>{
-      const rule=RESERVATION_RULES[id],checked=!!state.reservationDone[reservationKey(id,day)];
-      return `<label class="inspector-booking"><input type="checkbox" data-reservation-toggle="${escapeHtml(id)}" data-reservation-day="${day}" ${checked?'checked':''}><span>${escapeHtml(p?.title||id)}<small>${escapeHtml(rule.title)}</small></span></label>`;
-    }).join(''):'<p class="inspector-empty">예약 체크 대상이 없습니다.</p>'}
+    ${chosen?`<div class="inspector-workspace">
+      <div class="inspector-selected-head">
+        ${scheduleThumbnail(place|| (route?itemPlaceIds(chosen).map(placeById).find(p=>p?.image&&p.image!==FALLBACK):null),route?'📌':place?'📍':'✎')}
+        <div class="inspector-selected-name"><strong>${escapeHtml(title)}</strong><small>${route?itemPlaceIds(chosen).length+'곳 묶음':'일정 상세·수정'}</small></div>
+        <button id="inspectorClose" type="button" class="inspector-minor">선택 해제</button>
+      </div>
+      <div class="inspector-editor-grid">
+        <div class="inspector-time-block"><label>방문 시간</label>
+          <div class="inspector-time-view">${scheduleTimeLabel(chosen)}</div>
+          <div class="inspector-time-fields">
+            <input type="time" data-inspector-time="start" aria-label="시작 시간" value="${escapeHtml(chosen.start||'')}">
+            <span aria-hidden="true">→</span>
+            <input type="time" data-inspector-time="end" aria-label="종료 시간" value="${escapeHtml(chosen.end||'')}">
+          </div>
+        </div>
+        <div class="inspector-memo-block"><label for="inspectorMemo">내 메모</label>
+          <div class="inspector-memo-edit"><textarea id="inspectorMemo" rows="2" maxlength="2500" placeholder="일정 메모를 입력하세요">${escapeHtml(chosen.memo||'')}</textarea><button id="inspectorMemoSave" class="display-btn" type="button">저장</button></div>
+          <p class="inspector-memo-readonly">${escapeHtml(chosen.memo||'메모 없음')}</p>
+        </div>
+      </div>
+      ${route?`<div class="inspector-route-places"><span>묶음에 포함된 장소</span><div>${itemPlaceIds(chosen).map(id=>{const p=placeById(id);return p?`<button type="button" data-inspector-member="${escapeHtml(id)}">${escapeHtml(p.title)} ↗</button>`:''}).join('')}</div></div>`:''}
+      ${infoActions?`<div class="inspector-more-actions">${infoActions}</div>`:''}
+    </div>`:`<div class="inspector-workspace inspector-empty-workspace"><strong>일정 카드를 선택하세요</strong><span>시간과 메모를 수정하고 해당 일정의 예약 여부를 확인할 수 있습니다.</span></div>`}
+    <div class="inspector-bookings">
+      <strong>${chosen?'선택 일정 예약 확인':'하루 예약 체크'}</strong>
+      ${uniqueBookingIds.length?uniqueBookingIds.map(id=>{
+        const p=placeById(id),rule=RESERVATION_RULES[id],done=!!state.reservationDone[reservationKey(id,day)];
+        return `<label class="inspector-booking"><input type="checkbox" data-reservation-toggle="${escapeHtml(id)}" data-reservation-day="${day}" ${done?'checked':''}><span>${escapeHtml(p?.title||id)}<small>${done?'확인 완료':escapeHtml(rule.title)}</small></span></label>`;
+      }).join(''):'<p class="inspector-empty">예약 확인 항목이 없습니다.</p>'}
     </div>
   </div>`;
   root.querySelector('#inspectorRouteBtn')?.addEventListener('click',()=>window.openTripRouteAnalysis?.(day));
   root.querySelector('#inspectorClose')?.addEventListener('click',()=>{selectedScheduleUid=null;renderBoard()});
   root.querySelector('#inspectorPlaceDetails')?.addEventListener('click',()=>{if(place)selectPlace(place.id)});
+  root.querySelector('#inspectorUngroup')?.addEventListener('click',()=>{if(chosen?.routeId)ungroupRoute(chosen.uid,day)});
+  root.querySelector('#inspectorEditCustom')?.addEventListener('click',()=>{if(chosen)openEditCustom(chosen.uid,day)});
+  root.querySelectorAll('[data-inspector-member]').forEach(btn=>btn.addEventListener('click',()=>selectPlace(btn.dataset.inspectorMember)));
+  root.querySelectorAll('[data-inspector-time]').forEach(inp=>inp.addEventListener('change',()=>{if(chosen)updateTime(chosen.uid,day,inp.dataset.inspectorTime,inp.value)}));
   root.querySelector('#inspectorMemoSave')?.addEventListener('click',()=>{
     const value=(root.querySelector('#inspectorMemo')?.value||'').slice(0,2500);
     if(!chosen||chosen.memo===value)return;
     chosen.memo=value;persist();renderBoard();toast('메모를 저장했습니다.');
   });
+  root.querySelectorAll('img.schedule-thumb').forEach(img=>{img.onerror=()=>{const badge=document.createElement('span');badge.className='schedule-thumb schedule-thumb-icon';badge.textContent=img.dataset.fallbackIcon||'📍';img.replaceWith(badge)}});
   bindReservationToggles(root);
 }
-
 function applyUiDensity(compact){
   compactMode=compact;document.body.classList.toggle('compact-mode',compact);
   const btn=document.getElementById('densityToggle');
@@ -883,55 +906,70 @@ function bookingTag(place,day){
   return `<span class="booking-tag ${done?'done':rule.level}">${label}</span>`;
 }
 
-function compactCardDetails(item,place,day){
-  const rule=place&&RESERVATION_RULES[place.id],note=place&&PLACE_OPTION_NOTES[place.id];
-  if(!rule&&!note&&!item.memo)return '';
-  return `<details class="card-more"><summary>${rule?'예약 확인 · 상세':'메모 · 상세'}</summary>
-    <div class="card-more-content">
-      ${note?`<p class="card-extra-note">${escapeHtml(note)}</p>`:''}
-      ${place?renderRequirementInline(place.id,'schedule',day):''}
-      ${item.memo?`<p class="card-extra-note">${escapeHtml(item.memo)}</p>`:''}
-    </div></details>`;
+function scheduleThumbnail(place, fallbackIcon='📍') {
+  const image=place?.image;
+  if (image && image!==FALLBACK) {
+    return `<img class="schedule-thumb" src="${escapeHtml(image)}" alt="" loading="lazy" decoding="async" data-fallback-icon="${escapeHtml(fallbackIcon)}">`;
+  }
+  return `<span class="schedule-thumb schedule-thumb-icon" aria-hidden="true">${escapeHtml(fallbackIcon)}</span>`;
 }
 
-function renderScheduleCard(item,day,warnings=[]){
+function scheduleTimeLabel(item) {
+  const start=item.start||'시간 미정';
+  return `${escapeHtml(start)}${item.end?` <span class="schedule-time-separator">—</span> ${escapeHtml(item.end)}`:''}`;
+}
+
+function routeBookingTag(item,day) {
+  const ids=itemPlaceIds(item).filter(id=>RESERVATION_RULES[id]);
+  if(!ids.length)return '';
+  const pending=ids.filter(id=>!state.reservationDone[reservationKey(id,day)]).length;
+  return pending
+    ? `<span class="booking-tag ${ids.some(id=>RESERVATION_RULES[id].level==='required')?'required':'conditional'}">${pending}건 확인</span>`
+    : '<span class="booking-tag done">✓ 완료</span>';
+}
+
+function renderScheduleCard(item,day,warnings=[]) {
   if(item.routeId)return renderRouteScheduleCard(item,day,warnings);
   const place=item.placeId?placeById(item.placeId):null;
   const title=place?.title||item.title||'일정',kind=place?.kind||'custom';
-  return `<article class="schedule-card ${kind}" draggable="true" tabindex="0" role="group" aria-label="${escapeHtml(title)} 선택" data-item="${escapeHtml(item.uid)}" data-day="${day}">
-    <div class="card-head"><span class="drag-handle" aria-hidden="true">⠿</span><div class="card-title">${escapeHtml(title)}</div>${bookingTag(place,day)}
-      <div class="card-actions">${place?`<button class="card-icon detail-btn" data-place="${place.id}" title="장소 상세">ⓘ</button>`:`<button class="card-icon edit-custom-btn" data-edit-custom="${escapeHtml(item.uid)}" data-day="${day}" title="제목·메모 수정">✎</button>`}
-      <button class="card-icon remove-btn" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="삭제">×</button></div>
+  const icon=place?.kind==='hotel'?'🛏':place?.category==='airport'?'✈':place?.category==='transport'?'🚆':place?'📍':'✎';
+  return `<article class="schedule-card ${escapeHtml(kind)}" draggable="true" tabindex="0" role="group" aria-label="${escapeHtml(title)} 선택·편집" data-item="${escapeHtml(item.uid)}" data-day="${day}">
+    <div class="schedule-card-layout">
+      <span class="drag-handle" title="드래그하여 순서 이동" aria-hidden="true">⠿</span>
+      ${scheduleThumbnail(place,icon)}
+      <div class="schedule-card-copy">
+        <div class="schedule-card-title-line"><div class="card-title">${escapeHtml(title)}</div>${bookingTag(place,day)}</div>
+        <div class="schedule-card-subline"><span class="card-time-readout">${scheduleTimeLabel(item)}</span>${item.memo?'<span class="memo-indicator" title="하단에서 메모 확인·수정">✎ 메모</span>':''}</div>
+      </div>
+      <div class="card-actions">${place?`<button class="card-icon detail-btn" type="button" data-place="${escapeHtml(place.id)}" title="장소 정보" aria-label="${escapeHtml(title)} 장소 상세">ⓘ</button>`:''}<button class="card-icon remove-btn" type="button" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="일정에서 제거" aria-label="${escapeHtml(title)} 삭제">×</button></div>
     </div>
-    <div class="card-time-readout">${escapeHtml(item.start||'시간 미정')}${item.end?' – '+escapeHtml(item.end):''}</div>
     ${renderWarnings(warnings)}
-    <div class="time-row"><label class="time-field"><span>시작</span><input type="time" value="${escapeHtml(item.start||'')}" data-time="start" data-item="${escapeHtml(item.uid)}" data-day="${day}"></label><label class="time-field"><span>종료</span><input type="time" value="${escapeHtml(item.end||'')}" data-time="end" data-item="${escapeHtml(item.uid)}" data-day="${day}"></label></div>
-    <div class="card-note">${escapeHtml(item.memo||place?.duration||'직접 추가')}</div>
-    ${compactCardDetails(item,place,day)}</article>`;
+  </article>`;
 }
 
-function renderRouteScheduleCard(item,day,warnings=[]){
+function renderRouteScheduleCard(item,day,warnings=[]) {
   const group=routeById(item.routeId);
   if(!group)return '';
-  const memberIds=item.memberIds?.length?item.memberIds:group.placeIds;
-  const members=memberIds.map(placeById).filter(Boolean),shown=item.expanded?members:members.slice(0,2);
-  const reqs=members.filter(place=>RESERVATION_RULES[place.id]);
-  return `<article class="schedule-card route-schedule-card" draggable="true" tabindex="0" role="group" aria-label="${escapeHtml(group.title)} 선택" data-item="${escapeHtml(item.uid)}" data-day="${day}">
-    <div class="card-head"><span class="drag-handle" aria-hidden="true">⠿</span><div class="card-title"><span class="route-label">묶음</span>${escapeHtml(group.title)}</div>
-    <div class="card-actions"><button class="card-icon route-toggle" data-route-toggle="${escapeHtml(item.uid)}" data-day="${day}" title="묶음 펼치기">${item.expanded?'▴':'▾'}</button>
-    <button class="card-icon ungroup-btn" data-ungroup="${escapeHtml(item.uid)}" data-day="${day}" title="묶음 해제">↗</button>
-    <button class="card-icon remove-btn" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="삭제">×</button></div></div>
-    <div class="card-time-readout">${escapeHtml(item.start||'시간 미정')}${item.end?' – '+escapeHtml(item.end):''}</div>
+  const members=itemPlaceIds(item).map(placeById).filter(Boolean);
+  const representative=members.find(p=>p.image&&p.image!==FALLBACK)||members[0];
+  const preview=members.slice(0,2).map(p=>p.title).join(' · ');
+  return `<article class="schedule-card route-schedule-card" draggable="true" tabindex="0" role="group" aria-label="${escapeHtml(group.title)} 묶음 선택" data-item="${escapeHtml(item.uid)}" data-day="${day}">
+    <div class="schedule-card-layout">
+      <span class="drag-handle" title="드래그하여 순서 이동" aria-hidden="true">⠿</span>
+      ${scheduleThumbnail(representative,'📌')}
+      <div class="schedule-card-copy">
+        <div class="schedule-card-title-line"><div class="card-title">${escapeHtml(group.title)}</div>${routeBookingTag(item,day)}</div>
+        <div class="schedule-card-subline"><span class="card-time-readout">${scheduleTimeLabel(item)}</span><span class="route-member-count">${members.length}곳</span>${item.memo?'<span class="memo-indicator">✎ 메모</span>':''}</div>
+        <div class="route-schedule-members" title="${escapeHtml(members.map(p=>p.title).join(' · '))}"><span class="route-member-preview">${escapeHtml(preview)}${members.length>2?' 외 '+(members.length-2)+'곳':''}</span></div>
+      </div>
+      <div class="card-actions"><button class="card-icon remove-btn" type="button" data-remove="${escapeHtml(item.uid)}" data-day="${day}" title="묶음 제거" aria-label="${escapeHtml(group.title)} 삭제">×</button></div>
+    </div>
     ${renderWarnings(warnings)}
-    <div class="time-row"><label class="time-field"><span>시작</span><input type="time" value="${escapeHtml(item.start||'')}" data-time="start" data-item="${escapeHtml(item.uid)}" data-day="${day}"></label><label class="time-field"><span>종료</span><input type="time" value="${escapeHtml(item.end||'')}" data-time="end" data-item="${escapeHtml(item.uid)}" data-day="${day}"></label></div>
-    <div class="route-schedule-members">${shown.map((p,i)=>`<button type="button" data-place-inline="${p.id}"><span>${i+1}</span>${escapeHtml(p.title)}${RESERVATION_RULES[p.id]?.level==='required'?'<b>예약</b>':''}</button>`).join('')}
-    ${!item.expanded&&members.length>2?`<small>+ ${members.length-2}곳 더</small>`:''}</div>
-    <div class="card-note">${escapeHtml(group.region)} · ${escapeHtml(group.duration)}</div>
-    ${group.optionNote||reqs.length?`<details class="card-more"><summary>예약 · 묶음 상세</summary><div class="card-more-content">${group.optionNote?`<p class="card-extra-note">${escapeHtml(group.optionNote)}</p>`:''}${reqs.map(p=>renderRequirementInline(p.id,'schedule',day)).join('')}</div></details>`:''}
   </article>`;
 }
 function getDropIndex(zone,clientY){const cards=[...zone.querySelectorAll('.schedule-card:not(.dragging)')];for(let i=0;i<cards.length;i++){const rect=cards[i].getBoundingClientRect();if(clientY<rect.top+rect.height/2)return i}return cards.length}
 function bindScheduleDrag(){
+  document.querySelectorAll('img.schedule-thumb').forEach(img=>{img.onerror=()=>{const badge=document.createElement('span');badge.className='schedule-thumb schedule-thumb-icon';badge.textContent=img.dataset.fallbackIcon||'📍';img.replaceWith(badge)}});
   document.querySelectorAll('.day-head').forEach(header=>{
     header.addEventListener('click',event=>{
       if(event.target.closest('button'))return;
