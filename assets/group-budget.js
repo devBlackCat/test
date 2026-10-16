@@ -255,9 +255,30 @@
       <div class="trip-budget-days">${days.map(day=>{const sum=summary([day]);return `<div><span>5/${day}</span><b>${yen(sum.total)}</b><small>${sum.missing?sum.missing+"건 미확정":"확인값만 반영"}</small></div>`}).join("")}</div>
       <h3>5명 개인별 계산</h3>
       <div class="trip-budget-people">${people.map(p=>{const s=summary(days,p.id);return `<div>${avatar(p)}<span>${safe(p.name)}</span><b>${yen(s.total)}</b></div>`}).join("")}</div>
+      ${(()=>{const selected=getSelectedItem(),item=selected?.item;if(!item)return '<p class="trip-modal-note">특정 일정의 금액을 수정하려면 해당 일정을 먼저 선택하세요.</p>';const price=priceFor(item);const title=item.placeId?placeById(item.placeId)?.title:item.routeId?routeById(item.routeId)?.title:item.title||"일정";return `<div class="trip-budget-editor">
+        <h3>선택 일정 예상금액 수정</h3><strong>${safe(title)}</strong>
+        <div class="trip-item-price"><label for="tripItemPrice">1인 예상비용 (¥)</label>
+        <select id="tripItemCostCategory" aria-label="비용 유형">${Object.entries(categoryNames).map(([key,value])=>`<option value="${key}" ${key===(price?.category||"other")?"selected":""}>${value}</option>`).join("")}</select>
+        <input id="tripItemPrice" type="number" min="0" max="10000000" step="1" placeholder="미확정" value="${price?.yen??""}">
+        <button type="button" id="tripPriceApply">적용</button>
+        <button type="button" id="tripPriceReset" ${state.budgetOverrides?.[item.uid]?"":"disabled"}>기본값</button></div>
+        <small class="trip-expense-note">${safe(price?.note||"기본 가격 미확정. 확인 후 입력하세요.")}${price?.source?` · <a href="${safe(price.source)}" target="_blank" rel="noopener">출처 ↗</a>`:""}</small>
+      </div>`})()}
       <p class="trip-modal-note">USJ 임시 예산 ¥10,500은 <strong>실제 날짜별 티켓 가격이 아닙니다.</strong> 2027년 5월 방문 전 재확인해야 합니다. 입장료·교통비 기본값의 출처는 <a href="https://museum.nintendo.com/en/guide/index.html" target="_blank" rel="noopener">Nintendo Museum</a>, <a href="https://www.westjr.co.jp/travel-information/kr/tickets-passes/oneway/haruka/" target="_blank" rel="noopener">JR 서일본</a> 등입니다.</p>
     </div>`;
     dlg.querySelector("[data-close-budget]").onclick=()=>dlg.close();
+    dlg.querySelector("#tripPriceApply")?.addEventListener("click",()=>{
+      const item=getSelectedItem()?.item;if(!item)return;
+      const input=dlg.querySelector("#tripItemPrice");
+      const value=trimCurrency(input.value);
+      if(input.value===""||value===null){toast("0 이상 정수 금액을 입력하세요.");return}
+      state.budgetOverrides[item.uid]={yen:value,category:dlg.querySelector("#tripItemCostCategory").value};
+      persist();renderBoard();openBudget();toast("예상금액을 반영했습니다.");
+    });
+    dlg.querySelector("#tripPriceReset")?.addEventListener("click",()=>{
+      const item=getSelectedItem()?.item;if(!item)return;
+      delete state.budgetOverrides[item.uid];persist();renderBoard();openBudget();
+    });
     if(!dlg.open)dlg.showModal();
   }
   function editLeg(day,fromUid,toUid){
