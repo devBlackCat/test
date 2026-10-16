@@ -9,7 +9,8 @@
   }
   const allIds=people.map(p=>p.id);
   let pickedPerson=null;
-  const expandedCards=new Set();
+  // The drag session is transient; only finalized removals change the shared schedule.
+  let activeAvatarDrag=null;
   const yen=n=>"¥"+Math.round(n||0).toLocaleString("ja-JP");
   const safe=v=>escapeHtml(String(v??""));
   const itemList=day=>currentSchedule()[day]||[];
@@ -90,21 +91,15 @@
     return {amounts,total:Object.values(amounts).reduce((a,b)=>a+b,0),missing,confirmedCount};
   }
   function cardParticipantHtml(item){
-  const assigned=Array.isArray(state.attendance?.[item.uid]);
-  const ids=attendees(item);
-  if(!assigned&&!expandedCards.has(item.uid)){
-    return `<button type="button" class="trip-attendees-default" data-expand-attendees="${safe(item.uid)}" title="전원 참여 · 누르면 5명 모두 표시하여 제외 가능">👥 전원 <span aria-hidden="true">▾</span></button>`;
+    const ids=attendees(item);
+    return `<div class="trip-attendees-strip" aria-label="${ids.length}명 참가">
+      <span class="trip-avatar-stack">${ids.map(id=>{
+        const p=person(id);
+        return `<button type="button" class="trip-card-person" data-remove-attendee="${safe(id)}" title="${safe(p.name)} 제외 · 클릭하거나 다른 곳에 끌어놓기" aria-label="${safe(p.name)} 참가 취소" draggable="true">${avatar(p,"trip-avatar-small")}</button>`;
+      }).join("")}</span>
+      <span class="trip-attendee-count">${ids.length===allIds.length?"전원":`${ids.length}/${allIds.length}`}</span>
+    </div>`;
   }
-  return `<div class="trip-attendees-strip" aria-label="${safe(ids.length)}명 참여">
-    <span class="trip-avatar-stack">${ids.map(id=>{
-      const p=person(id);
-      return `<button type="button" class="trip-card-person" data-remove-attendee="${safe(id)}" title="${safe(p.name)} 제외 · 끌어서 상단으로 돌려놓기" aria-label="${safe(p.name)} 참가 취소" draggable="true">${avatar(p,"trip-avatar-small")}</button>`;
-    }).join("")}</span>
-    <span class="trip-attendee-count">${assigned?`${ids.length}/5`:"전원"}</span>
-    ${assigned?`<button type="button" class="trip-reset-all" data-reset-attendees="${safe(item.uid)}" title="5명 전원 참여로 초기화">전원 복구</button>`:""}
-    ${ids.length===0?'<span class="trip-attendee-empty">참가자 없음</span>':""}
-  </div>`;
-}
 
   function renderTopBar(){
   const root=document.getElementById("participantToolbar");
@@ -121,24 +116,26 @@
       renderTopBar();
     });
   });
-  root.addEventListener("dragover",onTopDragOver);
-  root.addEventListener("drop",onTopDrop);
   updateBudgetTop();
 }
 
-  function onTopDragOver(event){
-  if(event.dataTransfer.types.includes("text/remove-person")){
-    event.preventDefault();event.dataTransfer.dropEffect="move";
+  // A participant dragged out of their original card can be dropped anywhere
+  // in the document. Dropping back inside the same card cancels the removal.
+  function onAssignedDragOver(event){
+    if(!activeAvatarDrag||!event.dataTransfer?.types?.includes("text/remove-person"))return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect="move";
   }
-}
 
-  function onTopDrop(event){
-  const raw=event.dataTransfer.getData("text/remove-person");
-  if(!raw)return;
-  event.preventDefault();event.stopPropagation();
-  const [day,uid,id]=raw.split("|"),item=itemList(day).find(it=>it.uid===uid);
-  if(item&&allIds.includes(id))removeParticipant(item,id);
-}
+  function onAssignedDrop(event){
+    const drag=activeAvatarDrag;
+    if(!drag||event.dataTransfer?.getData("text/remove-person")!==drag.marker)return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
+    activeAvatarDrag=null;
+    if(!drag.card.contains(event.target))removeParticipant(drag.item,drag.id);
+  }
 
   function updateBudgetTop(){
   const btn=document.getElementById("tripBudgetBtn");if(!btn)return;
@@ -155,7 +152,6 @@
   const next=allIds.filter(v=>ids.includes(v)||v===id);
   if(next.length===5)delete state.attendance[item.uid];
   else state.attendance[item.uid]=next;
-  expandedCards.delete(item.uid);
   persist();renderBoard();toast(`${person(id).name} 참가자를 반영했습니다.`);
 }
 
@@ -163,15 +159,7 @@
   if(!item||!allIds.includes(id))return;
   const next=attendees(item).filter(member=>member!==id);
   state.attendance[item.uid]=next;
-  expandedCards.delete(item.uid);
   persist();renderBoard();toast(`${person(id).name}을(를) 이 일정에서 제외했습니다.`);
-}
-
-  function resetAll(item){
-  if(!item)return;
-  delete state.attendance[item.uid];
-  expandedCards.delete(item.uid);
-  persist();renderBoard();toast("5명 전원 참가로 복구했습니다.");
 }
 
   function syncCardAvatars(){
@@ -181,21 +169,20 @@
     const copy=card.querySelector(".schedule-card-copy");if(!copy)return;
     copy.insertAdjacentHTML("beforeend",cardParticipantHtml(item));
     const participants=copy.querySelector(".trip-attendees-strip");
-    copy.querySelector("[data-expand-attendees]")?.addEventListener("click",event=>{
-      event.stopPropagation();expandedCards.add(item.uid);renderBoard();
-    });
     participants?.querySelectorAll("[data-remove-attendee]").forEach(btn=>{
       btn.addEventListener("click",event=>{
         event.stopPropagation();removeParticipant(item,btn.dataset.removeAttendee);
       });
       btn.addEventListener("dragstart",event=>{
         event.stopPropagation();
-        event.dataTransfer.setData("text/remove-person",`${card.dataset.day}|${item.uid}|${btn.dataset.removeAttendee}`);
+        const id=btn.dataset.removeAttendee;
+        const marker=`${card.dataset.day}|${item.uid}|${id}`;
+        activeAvatarDrag={item,id,card,marker};
+        event.dataTransfer.setData("text/remove-person",marker);
         event.dataTransfer.effectAllowed="move";
       });
-    });
-    participants?.querySelector("[data-reset-attendees]")?.addEventListener("click",event=>{
-      event.stopPropagation();resetAll(item);
+      // ESC or an aborted drag must never remove a participant.
+      btn.addEventListener("dragend",()=>{activeAvatarDrag=null;});
     });
     // An avatar from the header can be dropped anywhere on the card, including the photo.
     card.addEventListener("dragover",event=>{
@@ -325,6 +312,8 @@
   const baseBoard=renderBoard;
   renderBoard=function(){baseBoard();syncCardAvatars()};
   document.getElementById("tripBudgetBtn")?.addEventListener("click",openBudget);
+  document.addEventListener("dragover",onAssignedDragOver,true);
+  document.addEventListener("drop",onAssignedDrop,true);
   renderTopBar();
   renderBoard();
 })();
